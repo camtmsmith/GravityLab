@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GravityLab — free-fall timing bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A1A33;
+  --ink-2:#122A4E;
+  --paper:#E9EBE6;
+  --paper-2:#DDE0D9;
+  --graphite:#15181C;
+  --rule:#5BC8D8;
+  --signal:#E8442B;
+  --muted:#6E7681;
+  --hair:rgba(255,255,255,.22);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--graphite);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'Archivo',system-ui,sans-serif;margin:0}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+header{
+  border-bottom:2px solid var(--graphite);
+  padding:18px 22px 14px;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:14px;
+}
+header h1{
+  font-weight:900;font-size:clamp(24px,3.4vw,38px);
+  letter-spacing:-.035em;text-transform:uppercase;
+}
+header h1 span{color:var(--signal)}
+header .tag{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);
+}
+header .const{margin-left:auto;font-size:12px;letter-spacing:.06em;color:var(--muted)}
+
+/* ---------- layout ---------- */
+.lab{
+  display:grid;
+  grid-template-columns:270px minmax(300px,1fr) 320px;
+  gap:0;
+  align-items:stretch;
+  min-height:calc(100vh - 74px);
+}
+.panel{padding:20px;border-right:1px solid rgba(21,24,28,.18)}
+.panel:last-child{border-right:none;border-left:1px solid rgba(21,24,28,.18)}
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:rgba(21,24,28,.2)}
+
+/* ---------- controls ---------- */
+label{display:block;font-size:12px;font-weight:600;letter-spacing:.02em;margin:0 0 5px}
+label .u{color:var(--muted);font-weight:400}
+.field{margin-bottom:16px}
+input[type=number]{
+  width:100%;padding:9px 10px;border:1.5px solid var(--graphite);background:#fff;
+  font-family:'IBM Plex Mono',monospace;font-size:16px;border-radius:0;color:var(--graphite);
+}
+input[type=number]:focus-visible,button:focus-visible,input[type=range]:focus-visible{
+  outline:2.5px solid var(--signal);outline-offset:2px;
+}
+input[type=range]{width:100%;accent-color:var(--signal);margin:2px 0 0}
+.rowval{display:flex;justify-content:space-between;align-items:baseline}
+.rowval .v{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--signal);font-weight:600}
+button{
+  width:100%;padding:11px 12px;margin-bottom:8px;border:1.5px solid var(--graphite);
+  background:transparent;color:var(--graphite);border-radius:0;cursor:pointer;
+  font-family:'Archivo',sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;transition:background .12s,color .12s;
+}
+button:hover{background:var(--graphite);color:var(--paper)}
+button.primary{background:var(--signal);border-color:var(--signal);color:#fff}
+button.primary:hover{background:#c2331e;border-color:#c2331e}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:disabled:hover{background:transparent;color:var(--graphite)}
+.btns{margin-top:18px}
+
+/* ---------- stage ---------- */
+.stage-wrap{padding:20px;display:flex;flex-direction:column}
+.stage{
+  position:relative;flex:1;min-height:440px;background:var(--ink);
+  background-image:
+    linear-gradient(rgba(91,200,216,.07) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(91,200,216,.07) 1px,transparent 1px);
+  background-size:100% 24px,24px 100%;
+  overflow:hidden;
+}
+.tower{position:absolute;left:0;right:0;bottom:46px;top:26px}
+.spine{position:absolute;left:78px;top:0;bottom:0;width:2px;background:var(--hair)}
+.tick{position:absolute;left:78px;height:1px;background:var(--hair)}
+.tick.major{background:rgba(255,255,255,.75);height:1.5px}
+.tick.mid{background:rgba(255,255,255,.42)}
+.tlabel{
+  position:absolute;left:0;width:64px;text-align:right;color:#fff;opacity:.8;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;transform:translateY(-50%);
+}
+.floor{position:absolute;left:0;right:0;bottom:44px;height:2px;background:#fff}
+.floor::after{
+  content:"";position:absolute;left:0;right:0;top:2px;height:14px;
+  background:repeating-linear-gradient(115deg,rgba(255,255,255,.5) 0 1px,transparent 1px 9px);
+}
+.ball{
+  position:absolute;left:150px;width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 33% 30%,#ff8b76,var(--signal) 62%,#a52a17);
+  border:2px solid #fff;cursor:grab;touch-action:none;
+}
+.ball:active{cursor:grabbing}
+.ball::after{
+  content:"";position:absolute;left:50%;top:50%;width:56px;height:56px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  box-shadow:0 0 0 1px rgba(232,68,43,.35);opacity:0;transition:opacity .2s;
+}
+.ball.armed::after{opacity:1}
+.ghost{position:absolute;left:78px;right:20px;height:1px;background:var(--signal);opacity:.30}
+.hline{position:absolute;left:78px;right:20px;height:1px;background:rgba(255,255,255,.35);
+  border-top:1px dashed rgba(255,255,255,.5);background:none}
+.readout{
+  position:absolute;right:18px;top:18px;text-align:right;color:#fff;
+}
+.readout .t{
+  font-family:'IBM Plex Mono',monospace;font-size:clamp(30px,5vw,46px);font-weight:500;
+  letter-spacing:-.02em;line-height:1;
+}
+.readout .t small{font-size:.42em;opacity:.6;margin-left:4px}
+.readout .lbl{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;
+  text-transform:uppercase;opacity:.55;margin-bottom:6px;
+}
+.readout .h{font-family:'IBM Plex Mono',monospace;font-size:12px;opacity:.6;margin-top:8px}
+.hint{
+  margin-top:12px;font-size:12px;color:var(--muted);
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;
+}
+
+/* ---------- data ---------- */
+.gcard{border:1.5px solid var(--graphite);padding:14px;margin-bottom:16px;background:var(--paper-2)}
+.gcard .big{font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.gcard .big small{font-size:.4em;font-weight:400;color:var(--muted);margin-left:4px}
+.gcard .err{font-size:12px;color:var(--muted);margin-top:6px}
+.gcard .err b{color:var(--signal);font-family:'IBM Plex Mono',monospace}
+dl.stats{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0 0 16px;font-size:13px}
+dl.stats dt{color:var(--muted)}
+dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-align:right}
+.log{
+  border-top:1px solid rgba(21,24,28,.2);max-height:34vh;overflow-y:auto;
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+}
+.log .row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:6px 2px;border-bottom:1px solid rgba(21,24,28,.1)}
+.log .n{color:var(--muted)}
+.log .g{color:var(--signal)}
+.empty{padding:16px 2px;color:var(--muted);font-size:13px;font-family:'IBM Plex Sans',sans-serif}
+
+@media (max-width:900px){
+  .lab{grid-template-columns:1fr}
+  .panel{border-right:none;border-bottom:1px solid rgba(21,24,28,.18)}
+  .panel:last-child{border-left:none}
+  .stage{min-height:60vh}
+  .log{max-height:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Gravity<span>Lab</span></h1>
+  <div class="tag">free-fall timing bench</div>
+  <div class="const mono">g = 9.81 m·s⁻²</div>
+</header>
+
+<div class="lab">
+
+  <!-- ================= controls ================= -->
+  <section class="panel">
+    <div class="eyebrow">Apparatus</div>
+
+    <div class="field">
+      <label for="height">Measured height <span class="u">(m)</span></label>
+      <input type="number" id="height" value="1.250" min="0.05" max="4.50" step="0.001">
+    </div>
+
+    <div class="field">
+      <label for="unc">Height uncertainty <span class="u">(± m)</span></label>
+      <input type="number" id="unc" value="0.005" min="0" max="0.5" step="0.001">
+    </div>
+
+    <div class="field">
+      <div class="rowval">
+        <label for="rand">Experimental scatter</label>
+        <span class="v mono" id="randOut">5%</span>
+      </div>
+      <input type="range" id="rand" min="0" max="20" step="0.5" value="5">
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="drop">Drop ball</button>
+      <button id="randomH">New random height</button>
+      <button id="export" disabled>Export CSV</button>
+      <button id="clear" disabled>Clear results</button>
+    </div>
+  </section>
+
+  <!-- ================= stage ================= -->
+  <section class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="tower" id="tower">
+        <div class="spine"></div>
+        <div class="hline" id="hline"></div>
+        <div class="ball armed" id="ball" tabindex="0" role="slider"
+             aria-label="Drop height" aria-valuemin="0.05" aria-valuemax="4.5" aria-valuenow="1.25"></div>
+      </div>
+      <div class="floor"></div>
+      <div class="readout">
+        <div class="lbl">Stopwatch</div>
+        <div class="t mono" id="watch">0.000<small>s</small></div>
+        <div class="h mono" id="hRead">release height 1.250 m</div>
+      </div>
+    </div>
+    <p class="hint">Drag the ball, or use ↑ ↓ arrow keys, to set the release height.</p>
+  </section>
+
+  <!-- ================= data ================= -->
+  <section class="panel">
+    <div class="eyebrow">Results</div>
+
+    <div class="gcard">
+      <div class="big mono" id="gVal">—<small>m/s²</small></div>
+      <div class="err" id="gErr">Measured g appears after the first drop.</div>
+    </div>
+
+    <dl class="stats">
+      <dt>Trials</dt><dd id="sN">0</dd>
+      <dt>Mean time</dt><dd id="sMean">—</dd>
+      <dt>Std. deviation</dt><dd id="sSD">—</dd>
+      <dt>Std. error</dt><dd id="sSE">—</dd>
+    </dl>
+
+    <div class="log" id="log">
+      <div class="empty">No trials yet. Drop the ball to start recording.</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const G = 9.81, MAX_H = 4.5, MIN_H = 0.05, BALL = 34;
+  const $ = id => document.getElementById(id);
+
+  const stage=$('stage'), tower=$('tower'), ball=$('ball'), hline=$('hline'),
+        watch=$('watch'), hRead=$('hRead'), log=$('log');
+  const heightIn=$('height'), uncIn=$('unc'), randIn=$('rand'), randOut=$('randOut');
+  const btnDrop=$('drop'), btnRand=$('randomH'), btnExport=$('export'), btnClear=$('clear');
+
+  let height = 1.25;      // metres above the floor
+  let trials = [];        // {t, h}
+  let pxPerM = 100;
+  let dropping = false;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- ruler ---------- */
+  function layout(){
+    pxPerM = (tower.clientHeight - BALL) / MAX_H;
+    tower.querySelectorAll('.tick,.tlabel').forEach(n => n.remove());
+    const frag = document.createDocumentFragment();
+    for(let cm = 0; cm <= MAX_H*100; cm += 5){
+      const y = (cm/100) * pxPerM;
+      const t = document.createElement('div');
+      const major = cm % 50 === 0, mid = cm % 10 === 0;
+      t.className = 'tick' + (major ? ' major' : mid ? ' mid' : '');
+      t.style.bottom = y + 'px';
+      t.style.width = (major ? 34 : mid ? 22 : 14) + 'px';
+      t.style.marginLeft = '-' + (major ? 17 : mid ? 11 : 7) + 'px';
+      frag.appendChild(t);
+      if(major){
+        const l = document.createElement('div');
+        l.className = 'tlabel mono';
+        l.textContent = (cm/100).toFixed(1);
+        l.style.bottom = y + 'px';
+        l.style.transform = 'translateY(50%)';
+        frag.appendChild(l);
+      }
+    }
+    tower.insertBefore(frag, ball);
+    place(height);
+  }
+
+  function place(h){
+    const y = h * pxPerM;
+    ball.style.bottom = y + 'px';
+    hline.style.bottom = y + 'px';
+  }
+
+  function setHeight(h, fromInput){
+    height = Math.min(MAX_H, Math.max(MIN_H, h));
+    place(height);
+    ball.setAttribute('aria-valuenow', height.toFixed(3));
+    hRead.textContent = 'release height ' + height.toFixed(3) + ' m';
+    if(!fromInput) heightIn.value = height.toFixed(3);
+  }
+
+  /* ---------- drag & keyboard ---------- */
+  ball.addEventListener('pointerdown', e => {
+    if(dropping) return;
+    ball.setPointerCapture(e.pointerId);
+    const move = ev => {
+      const r = tower.getBoundingClientRect();
+      setHeight((r.bottom - ev.clientY - BALL/2) / pxPerM);
+    };
+    const up = ev => {
+      ball.releasePointerCapture(e.pointerId);
+      ball.removeEventListener('pointermove', move);
+      ball.removeEventListener('pointerup', up);
+    };
+    ball.addEventListener('pointermove', move);
+    ball.addEventListener('pointerup', up);
+    move(e);
+  });
+
+  ball.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 0.01 : 0.05;
+    if(e.key === 'ArrowUp'){ setHeight(height + step); e.preventDefault(); }
+    if(e.key === 'ArrowDown'){ setHeight(height - step); e.preventDefault(); }
+    if(e.key === 'Enter' || e.key === ' '){ drop(); e.preventDefault(); }
+  });
+
+  heightIn.addEventListener('input', () => {
+    const v = parseFloat(heightIn.value);
+    if(isFinite(v)) setHeight(v, true);
+  });
+  heightIn.addEventListener('blur', () => setHeight(height));
+  randIn.addEventListener('input', () => randOut.textContent = (+randIn.value) + '%');
+
+  /* ---------- physics ---------- */
+  function gauss(mu, sigma){           // Box–Muller
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random();
+    while(v === 0) v = Math.random();
+    return mu + sigma * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+  }
+
+  function drop(){
+    if(dropping) return;
+    const dh = Math.max(0, parseFloat(uncIn.value) || 0);
+    const scatter = (+randIn.value)/100;
+
+    const trueH = Math.max(0.001, gauss(height, dh));       // the height you didn't quite measure right
+    let t = Math.sqrt(2*trueH/G);                           // ideal fall time
+    t *= Math.max(0.05, gauss(1, scatter));                 // reaction time / timing scatter
+    t = Math.max(0.001, t);
+
+    dropping = true;
+    btnDrop.disabled = btnRand.disabled = true;
+    ball.classList.remove('armed');
+
+    animate(t, () => {
+      dropping = false;
+      btnDrop.disabled = btnRand.disabled = false;
+      ball.classList.add('armed');
+      record(t, height);
+      place(height);
+    });
+  }
+
+  function animate(t, done){
+    const h0 = height;
+    if(reduced){
+      place(0); watch.innerHTML = t.toFixed(4) + '<small>s</small>';
+      setTimeout(done, 180);
+      return;
+    }
+    const t0 = performance.now();
+    (function frame(now){
+      const el = Math.min(t, (now - t0)/1000);
+      const frac = el / t;
+      place(h0 * (1 - frac*frac));                 // quadratic fall: y = h(1 − (τ/t)²)
+      watch.innerHTML = el.toFixed(3) + '<small>s</small>';
+      if(el < t) requestAnimationFrame(frame);
+      else{
+        place(0);
+        watch.innerHTML = t.toFixed(4) + '<small>s</small>';
+        setTimeout(done, 160);
+      }
+    })(t0);
+  }
+
+  /* ---------- data ---------- */
+  function record(t, h){
+    trials.push({t: t, h: h, g: 2*h/(t*t)});
+    render();
+  }
+
+  function render(){
+    const n = trials.length;
+    btnExport.disabled = btnClear.disabled = n === 0;
+
+    if(n === 0){
+      log.innerHTML = '<div class="empty">No trials yet. Drop the ball to start recording.</div>';
+      $('sN').textContent = '0';
+      $('sMean').textContent = $('sSD').textContent = $('sSE').textContent = '—';
+      $('gVal').innerHTML = '—<small>m/s²</small>';
+      $('gErr').textContent = 'Measured g appears after the first drop.';
+      return;
+    }
+
+    const ts = trials.map(x => x.t);
+    const mean = ts.reduce((a,b)=>a+b,0)/n;
+    const sd = n > 1 ? Math.sqrt(ts.reduce((a,b)=>a+(b-mean)**2,0)/(n-1)) : 0;
+    const se = n > 1 ? sd/Math.sqrt(n) : 0;
+
+    const hMean = trials.reduce((a,x)=>a+x.h,0)/n;
+    const gMeas = 2*hMean/(mean*mean);
+    const err = (gMeas - G)/G*100;
+
+    $('sN').textContent = n;
+    $('sMean').textContent = mean.toFixed(4) + ' s';
+    $('sSD').textContent = n > 1 ? sd.toFixed(4) + ' s' : '—';
+    $('sSE').textContent = n > 1 ? '± ' + se.toFixed(4) + ' s' : '—';
+
+    $('gVal').innerHTML = gMeas.toFixed(2) + '<small>m/s²</small>';
+    $('gErr').innerHTML = 'From mean time over ' + n + ' trial' + (n>1?'s':'') +
+                          ' · <b>' + (err>=0?'+':'') + err.toFixed(1) + '%</b> from 9.81';
+
+    log.innerHTML = trials.map((x,i)=>
+      '<div class="row"><span class="n">' + String(i+1).padStart(2,'0') + '</span>' +
+      '<span>' + x.t.toFixed(4) + ' s</span>' +
+      '<span class="g">' + x.g.toFixed(2) + '</span></div>'
+    ).reverse().join('');
+  }
+
+  /* ---------- buttons ---------- */
+  btnDrop.addEventListener('click', drop);
+
+  btnRand.addEventListener('click', () => {
+    if(dropping) return;
+    setHeight(Math.round((0.5 + Math.random()*3.5)*1000)/1000);
+  });
+
+  btnClear.addEventListener('click', () => { trials = []; render(); });
+
+  btnExport.addEventListener('click', () => {
+    const rows = [['trial','height_m','time_s','g_m_s2']]
+      .concat(trials.map((x,i)=>[i+1, x.h.toFixed(3), x.t.toFixed(4), x.g.toFixed(3)]));
+    const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'gravitylab-trials.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  window.addEventListener('resize', layout);
+  layout();
+  setHeight(1.25);
+  render();
+})();
+</script>
+</body>
+</html>
