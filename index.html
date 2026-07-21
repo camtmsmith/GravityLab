@@ -145,6 +145,11 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 }
 .speed button:last-child{border-right:none}
 .speed button[aria-pressed=true]{background:var(--graphite);color:var(--paper)}
+label.check{
+  display:flex;align-items:center;gap:9px;cursor:pointer;
+  font-size:12px;font-weight:600;margin:0;
+}
+label.check input{width:15px;height:15px;accent-color:#123E6B;margin:0;cursor:pointer}
 .hline{position:absolute;left:78px;right:20px;height:1px;background:rgba(255,255,255,.35);
   border-top:1px dashed rgba(255,255,255,.5);background:none}
 .readout{
@@ -245,6 +250,13 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       </div>
     </div>
 
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" id="aux">
+        Show gradient &amp; area
+      </label>
+    </div>
+
     <div class="btns">
       <button class="primary" id="drop">Drop ball</button>
       <button id="randomH">New random height</button>
@@ -329,6 +341,9 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   let dropping = false;
   let rate = 1;                    // playback speed: 1 = real time, 0.1 = ten times slower
   const vRead = $('vRead');
+  const auxToggle = $('aux');
+
+  auxToggle.addEventListener('change', () => { if(!dropping) idleGraphs(); });
 
   $('speed').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -505,10 +520,13 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
   /* ---------- graphs ---------- */
   const PLOTS = [
-    {c:$('gD'), out:$('nD'), unit:' m',    f:(tau,a,T)=>0.5*a*tau*tau, top:(a,T)=>0.5*a*T*T},
-    {c:$('gV'), out:$('nV'), unit:' m/s',  f:(tau,a)=>a*tau,           top:(a,T)=>a*T},
-    {c:$('gA'), out:$('nA'), unit:' m/s²', f:(tau,a)=>a,               top:(a)=>Math.max(12, a*1.35)}
+    {c:$('gD'), out:$('nD'), unit:' m',    f:(tau,a,T)=>0.5*a*tau*tau, top:(a,T)=>0.5*a*T*T, tangent:true},
+    {c:$('gV'), out:$('nV'), unit:' m/s',  f:(tau,a)=>a*tau,           top:(a,T)=>a*T,
+      area:true, areaVal:(tau,a)=>0.5*a*tau*tau, areaUnit:' m'},
+    {c:$('gA'), out:$('nA'), unit:' m/s²', f:(tau,a)=>a,               top:(a)=>Math.max(12, a*1.35),
+      area:true, areaVal:(tau,a)=>a*tau,         areaUnit:' m/s'}
   ];
+  const AUX = '#123E6B';
   const PAD = {l:26, r:6, t:6, b:16};
 
   function sizeCanvas(cv){
@@ -522,6 +540,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
   // a = acceleration for this fall, T = total fall time, tau = time to trace to (or null)
   function drawGraphs(a, T, tau){
+    const aux = auxToggle.checked;
     PLOTS.forEach(p => {
       const x = sizeCanvas(p.c);
       const W = p.c.clientWidth, H = p.c.clientHeight;
@@ -549,6 +568,21 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       x.fillText('0', x0, y0 + 4);
       x.fillText(T.toFixed(2) + ' s', x0 + w - 12, y0 + 4);
 
+      // area under the velocity curve = displacement
+      if(p.area && aux && tau != null && tau > 0){
+        x.fillStyle = 'rgba(18,62,107,.16)';
+        x.beginPath();
+        x.moveTo(px(0), y0);
+        for(let i = 0; i <= 60; i++){
+          const t = tau * i/60;
+          x.lineTo(px(t), py(p.f(t, a, T)));
+        }
+        x.lineTo(px(tau), y0);
+        x.closePath(); x.fill();
+        x.strokeStyle = 'rgba(18,62,107,.45)';
+        x.lineWidth = 1; x.stroke();
+      }
+
       // full predicted curve, faint
       const plot = (from, to, style, width) => {
         x.strokeStyle = style; x.lineWidth = width;
@@ -566,8 +600,35 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       // traced portion + playhead
       if(tau != null && tau > 0){
         plot(0, tau, '#E8442B', 2.5);
+
+        // tangent to the displacement curve: its gradient is the instantaneous velocity
+        if(p.tangent && aux){
+          const v0 = p.f(tau, a, T), slope = a*tau, arm = T*0.3;
+          x.strokeStyle = AUX; x.lineWidth = 1.75;
+          x.setLineDash([5,3]);
+          x.beginPath();
+          x.moveTo(px(Math.max(0, tau - arm)), py(v0 + slope*(Math.max(0, tau - arm) - tau)));
+          x.lineTo(px(Math.min(T, tau + arm)), py(v0 + slope*(Math.min(T, tau + arm) - tau)));
+          x.stroke();
+          x.setLineDash([]);
+        }
+
         x.fillStyle = '#E8442B';
         x.beginPath(); x.arc(px(tau), py(p.f(tau, a, T)), 3.5, 0, 7); x.fill();
+
+        // labels for the two constructions
+        if(aux && (p.tangent || p.area)){
+          x.fillStyle = AUX;
+          x.font = '600 10px "IBM Plex Mono", monospace';
+          x.textBaseline = 'top';
+          if(p.tangent){
+            x.textAlign = 'right';
+            x.fillText('gradient = ' + (a*tau).toFixed(2) + ' m/s', x0 + w, PAD.t);
+          }else{
+            x.textAlign = 'left';
+            x.fillText('area = ' + p.areaVal(tau, a).toFixed(2) + p.areaUnit, x0 + 6, PAD.t);
+          }
+        }
       }
 
       const v = p.f(tau == null ? 0 : tau, a, T);
