@@ -164,6 +164,16 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
   margin-top:12px;font-size:12px;color:var(--muted);
   font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;
 }
+.graphs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.graph{border:1.5px solid var(--graphite);background:var(--paper-2);padding:10px 10px 6px}
+.graph .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.graph .name{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);
+}
+.graph .now{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--signal)}
+.graph canvas{display:block;width:100%;height:104px}
+@media (max-width:1200px){.graphs{grid-template-columns:1fr}.graph canvas{height:88px}}
 
 /* ---------- data ---------- */
 .gcard{border:1.5px solid var(--graphite);padding:14px;margin-bottom:16px;background:var(--paper-2)}
@@ -261,6 +271,21 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       </div>
     </div>
     <p class="hint">Drag the ball, or use ↑ ↓ arrow keys, to set the release height. Slow the playback to leave strobe marks every 0.1 s of the fall.</p>
+
+    <div class="graphs">
+      <figure class="graph">
+        <div class="head"><span class="name">Displacement</span><span class="now mono" id="nD">0.00 m</span></div>
+        <canvas id="gD"></canvas>
+      </figure>
+      <figure class="graph">
+        <div class="head"><span class="name">Velocity</span><span class="now mono" id="nV">0.00 m/s</span></div>
+        <canvas id="gV"></canvas>
+      </figure>
+      <figure class="graph">
+        <div class="head"><span class="name">Acceleration</span><span class="now mono" id="nA">9.81 m/s²</span></div>
+        <canvas id="gA"></canvas>
+      </figure>
+    </div>
   </section>
 
   <!-- ================= data ================= -->
@@ -354,6 +379,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     ball.setAttribute('aria-valuenow', height.toFixed(3));
     hRead.textContent = 'release height ' + height.toFixed(3) + ' m';
     if(!fromInput) heightIn.value = height.toFixed(3);
+    if(!dropping) idleGraphs();
   }
 
   /* ---------- drag & keyboard ---------- */
@@ -434,6 +460,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
   function animate(t, done){
     const h0 = height;
+    const aEff = 2*h0/(t*t);          // the acceleration this particular trial implies
     clearStrobes();
 
     // stopwatch always shows physical time; only wall-clock duration is stretched
@@ -445,6 +472,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       place(0);
       watch.innerHTML = t.toFixed(4) + '<small>s</small>';
       vRead.textContent = (G*t).toFixed(2) + ' m/s';
+      drawGraphs(aEff, t, t);
       setTimeout(done, 180);
       return;
     }
@@ -457,6 +485,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       place(h);
       watch.innerHTML = el.toFixed(3) + '<small>s</small>';
       vRead.textContent = (2*h0*frac/t).toFixed(2) + ' m/s';
+      drawGraphs(aEff, t, el);
 
       while(strobeStep && el >= nextStrobe && nextStrobe < t){
         addStrobe(h0 * (1 - (nextStrobe/t)**2), nextStrobe.toFixed(1) + ' s');
@@ -468,10 +497,89 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
         place(0);
         watch.innerHTML = t.toFixed(4) + '<small>s</small>';
         vRead.textContent = (2*h0/t).toFixed(2) + ' m/s';
+        drawGraphs(aEff, t, t);
         setTimeout(done, rate < 1 ? 600 : 160);
       }
     })(t0);
   }
+
+  /* ---------- graphs ---------- */
+  const PLOTS = [
+    {c:$('gD'), out:$('nD'), unit:' m',    f:(tau,a,T)=>0.5*a*tau*tau, top:(a,T)=>0.5*a*T*T},
+    {c:$('gV'), out:$('nV'), unit:' m/s',  f:(tau,a)=>a*tau,           top:(a,T)=>a*T},
+    {c:$('gA'), out:$('nA'), unit:' m/s²', f:(tau,a)=>a,               top:(a)=>Math.max(12, a*1.35)}
+  ];
+  const PAD = {l:26, r:6, t:6, b:16};
+
+  function sizeCanvas(cv){
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = cv.clientWidth * dpr;
+    cv.height = cv.clientHeight * dpr;
+    const x = cv.getContext('2d');
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return x;
+  }
+
+  // a = acceleration for this fall, T = total fall time, tau = time to trace to (or null)
+  function drawGraphs(a, T, tau){
+    PLOTS.forEach(p => {
+      const x = sizeCanvas(p.c);
+      const W = p.c.clientWidth, H = p.c.clientHeight;
+      const x0 = PAD.l, y0 = H - PAD.b, w = W - PAD.l - PAD.r, h = H - PAD.t - PAD.b;
+      const yMax = p.top(a, T) || 1;
+      const px = t => x0 + (t/T) * w;
+      const py = v => y0 - (v/yMax) * h;
+
+      x.clearRect(0, 0, W, H);
+
+      // grid + axis labels
+      x.strokeStyle = 'rgba(21,24,28,.14)';
+      x.fillStyle = '#6E7681';
+      x.font = '9px "IBM Plex Mono", monospace';
+      x.lineWidth = 1;
+      for(let i = 0; i <= 2; i++){
+        const v = yMax * i/2, y = Math.round(py(v)) + .5;
+        x.beginPath(); x.moveTo(x0, y); x.lineTo(x0 + w, y); x.stroke();
+        x.textAlign = 'right'; x.textBaseline = 'middle';
+        x.fillText(v.toFixed(v < 10 ? 1 : 0), x0 - 5, y);
+      }
+      x.strokeStyle = 'rgba(21,24,28,.5)';
+      x.beginPath(); x.moveTo(x0 + .5, PAD.t); x.lineTo(x0 + .5, y0 + .5); x.stroke();
+      x.textAlign = 'center'; x.textBaseline = 'top';
+      x.fillText('0', x0, y0 + 4);
+      x.fillText(T.toFixed(2) + ' s', x0 + w - 12, y0 + 4);
+
+      // full predicted curve, faint
+      const plot = (from, to, style, width) => {
+        x.strokeStyle = style; x.lineWidth = width;
+        x.beginPath();
+        const steps = 60;
+        for(let i = 0; i <= steps; i++){
+          const t = from + (to - from) * i/steps;
+          const X = px(t), Y = py(p.f(t, a, T));
+          i ? x.lineTo(X, Y) : x.moveTo(X, Y);
+        }
+        x.stroke();
+      };
+      plot(0, T, 'rgba(21,24,28,.22)', 1.5);
+
+      // traced portion + playhead
+      if(tau != null && tau > 0){
+        plot(0, tau, '#E8442B', 2.5);
+        x.fillStyle = '#E8442B';
+        x.beginPath(); x.arc(px(tau), py(p.f(tau, a, T)), 3.5, 0, 7); x.fill();
+      }
+
+      const v = p.f(tau == null ? 0 : tau, a, T);
+      p.out.textContent = v.toFixed(2) + p.unit;
+    });
+  }
+
+  // resting state: predicted curves for the current height at g = 9.81
+  function idleGraphs(){
+    drawGraphs(G, Math.sqrt(2*height/G), null);
+  }
+
 
   /* ---------- data ---------- */
   function record(t, h){
@@ -538,9 +646,10 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     URL.revokeObjectURL(a.href);
   });
 
-  window.addEventListener('resize', layout);
+  window.addEventListener('resize', () => { layout(); if(!dropping) idleGraphs(); });
   layout();
   setHeight(1.25);
+  idleGraphs();
   render();
 })();
 </script>
