@@ -232,12 +232,29 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       <input type="number" id="unc" value="0.005" min="0" max="0.5" step="0.001">
     </div>
 
+    <div class="eyebrow" style="margin-top:22px">Human timing</div>
+
     <div class="field">
       <div class="rowval">
-        <label for="rand">Experimental scatter</label>
-        <span class="v mono" id="randOut">5%</span>
+        <label for="react">Reaction spread <span class="u">(each press)</span></label>
+        <span class="v mono" id="reactOut">0.06 s</span>
       </div>
-      <input type="range" id="rand" min="0" max="20" step="0.5" value="5">
+      <input type="range" id="react" min="0" max="0.20" step="0.005" value="0.06">
+    </div>
+
+    <div class="field">
+      <div class="rowval">
+        <label for="bias">Systematic bias <span class="u">(late stop +)</span></label>
+        <span class="v mono" id="biasOut">0.00 s</span>
+      </div>
+      <input type="range" id="bias" min="-0.20" max="0.20" step="0.005" value="0">
+    </div>
+
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" id="res" checked>
+        Stopwatch reads to 0.01 s
+      </label>
     </div>
 
     <div class="field">
@@ -278,6 +295,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       <div class="readout">
         <div class="lbl">Stopwatch</div>
         <div class="t mono" id="watch">0.000<small>s</small></div>
+        <div class="h mono" id="tRead">true fall —</div>
         <div class="h mono" id="vRead">0.00 m/s</div>
         <div class="h mono" id="hRead">release height 1.250 m</div>
       </div>
@@ -314,6 +332,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       <dt>Mean time</dt><dd id="sMean">—</dd>
       <dt>Std. deviation</dt><dd id="sSD">—</dd>
       <dt>Std. error</dt><dd id="sSE">—</dd>
+      <dt>Mean true fall</dt><dd id="sTrue">—</dd>
     </dl>
 
     <div class="log" id="log">
@@ -332,8 +351,11 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
   const stage=$('stage'), tower=$('tower'), ball=$('ball'), hline=$('hline'),
         watch=$('watch'), hRead=$('hRead'), log=$('log');
-  const heightIn=$('height'), uncIn=$('unc'), randIn=$('rand'), randOut=$('randOut');
+  const heightIn=$('height'), uncIn=$('unc');
+  const reactOut=$('reactOut'), biasOut=$('biasOut');
   const btnDrop=$('drop'), btnRand=$('randomH'), btnExport=$('export'), btnClear=$('clear');
+  const reactIn=$('react'), biasIn=$('bias'), resIn=$('res'), tRead=$('tRead');
+  const NOMINAL_LAG = 0.20;      // typical thumb lag; cancels between the two presses
 
   let height = 1.25;      // metres above the floor
   let trials = [];        // {t, h}
@@ -427,7 +449,10 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     if(isFinite(v)) setHeight(v, true);
   });
   heightIn.addEventListener('blur', () => setHeight(height));
-  randIn.addEventListener('input', () => randOut.textContent = (+randIn.value) + '%');
+  reactIn.addEventListener('input', () =>
+    reactOut.textContent = (+reactIn.value).toFixed(3) + ' s');
+  biasIn.addEventListener('input', () =>
+    biasOut.textContent = ((+biasIn.value) >= 0 ? '+' : '') + (+biasIn.value).toFixed(3) + ' s');
 
   /* ---------- physics ---------- */
   function gauss(mu, sigma){           // Box–Muller
@@ -439,23 +464,32 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
   function drop(){
     if(dropping) return;
-    const dh = Math.max(0, parseFloat(uncIn.value) || 0);
-    const scatter = (+randIn.value)/100;
 
-    const trueH = Math.max(0.001, gauss(height, dh));       // the height you didn't quite measure right
-    let t = Math.sqrt(2*trueH/G);                           // ideal fall time
-    t *= Math.max(0.05, gauss(1, scatter));                 // reaction time / timing scatter
-    t = Math.max(0.001, t);
+    const dh    = Math.max(0, parseFloat(uncIn.value) || 0);   // height measurement error
+    const sigma = +reactIn.value;                              // spread on each button press
+    const bias  = +biasIn.value;                               // net late-stop tendency
+
+    // --- what actually happens ---
+    const hTrue = Math.max(0.001, gauss(height, dh));   // the ball is not quite where you think
+    const tTrue = Math.sqrt(2*hTrue/G);                 // the real fall, governed by real g
+
+    // --- what the human records ---
+    // Two independent presses. The start delay largely cancels the stop delay, so the
+    // NOMINAL lag drops out and only the spread (and any bias) survives into the reading.
+    const dStart = NOMINAL_LAG + gauss(0, sigma);
+    const dStop  = NOMINAL_LAG + gauss(0, sigma) + bias;
+    let reading  = Math.max(0.001, tTrue + (dStop - dStart));
+    if(resIn.checked) reading = Math.round(reading*100)/100;   // digital watch quantisation
 
     dropping = true;
     btnDrop.disabled = btnRand.disabled = true;
     ball.classList.remove('armed');
 
-    animate(t, () => {
+    animate(tTrue, dStart, tTrue + dStop, reading, () => {
       dropping = false;
       btnDrop.disabled = btnRand.disabled = false;
       ball.classList.add('armed');
-      record(t, height);
+      record(reading, height, tTrue);
       place(height);
     });
   }
@@ -473,48 +507,49 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     tower.appendChild(s);
   }
 
-  function animate(t, done){
+  // tTrue: real fall duration. wStart/wStop: when the human's thumb actually moves.
+  function animate(tTrue, wStart, wStop, reading, done){
     const h0 = height;
-    const aEff = 2*h0/(t*t);          // the acceleration this particular trial implies
     clearStrobes();
 
-    // stopwatch always shows physical time; only wall-clock duration is stretched
-    const wall = t / rate;
-    const strobeStep = rate < 1 ? 0.1 : 0;   // strobe marks every 0.1 s of fall
+    const span = Math.max(tTrue, wStop) + 0.05;     // run on until the watch is stopped
+    const strobeStep = rate < 1 ? 0.1 : 0;
     let nextStrobe = strobeStep;
 
-    if(reduced && rate === 1){
+    const showWatch = tau => {
+      const v = tau < wStart ? 0 : tau > wStop ? reading : tau - wStart;
+      watch.innerHTML = v.toFixed(resIn.checked ? 2 : 3) + '<small>s</small>';
+    };
+    const finish = () => {
       place(0);
-      watch.innerHTML = t.toFixed(4) + '<small>s</small>';
-      vRead.textContent = (G*t).toFixed(2) + ' m/s';
-      drawGraphs(aEff, t, t);
-      setTimeout(done, 180);
-      return;
-    }
+      watch.innerHTML = reading.toFixed(resIn.checked ? 2 : 3) + '<small>s</small>';
+      tRead.textContent = 'true fall ' + tTrue.toFixed(4) + ' s  ·  read ' +
+                          (reading >= tTrue ? '+' : '') + (reading - tTrue).toFixed(3) + ' s';
+      vRead.textContent = (G*tTrue).toFixed(2) + ' m/s at impact';
+      drawGraphs(G, tTrue, tTrue);
+      setTimeout(done, rate < 1 ? 600 : 200);
+    };
+
+    if(reduced && rate === 1){ finish(); return; }
 
     const t0 = performance.now();
     (function frame(now){
-      const el = Math.min(t, ((now - t0)/1000) * rate);   // elapsed fall time, in seconds
-      const frac = el / t;
-      const h = h0 * (1 - frac*frac);                     // quadratic fall: y = h(1 − (τ/t)²)
-      place(h);
-      watch.innerHTML = el.toFixed(3) + '<small>s</small>';
-      vRead.textContent = (2*h0*frac/t).toFixed(2) + ' m/s';
-      drawGraphs(aEff, t, el);
+      const tau = Math.min(span, ((now - t0)/1000) * rate);   // elapsed real time since release
+      const fall = Math.min(tau, tTrue);
+      const frac = fall / tTrue;
 
-      while(strobeStep && el >= nextStrobe && nextStrobe < t){
-        addStrobe(h0 * (1 - (nextStrobe/t)**2), nextStrobe.toFixed(1) + ' s');
+      place(h0 * (1 - frac*frac));                            // quadratic fall
+      showWatch(tau);
+      vRead.textContent = (G*fall).toFixed(2) + ' m/s';
+      drawGraphs(G, tTrue, fall);
+
+      while(strobeStep && fall >= nextStrobe && nextStrobe < tTrue){
+        addStrobe(h0 * (1 - (nextStrobe/tTrue)**2), nextStrobe.toFixed(1) + ' s');
         nextStrobe += strobeStep;
       }
 
-      if(el < t) requestAnimationFrame(frame);
-      else{
-        place(0);
-        watch.innerHTML = t.toFixed(4) + '<small>s</small>';
-        vRead.textContent = (2*h0/t).toFixed(2) + ' m/s';
-        drawGraphs(aEff, t, t);
-        setTimeout(done, rate < 1 ? 600 : 160);
-      }
+      if(tau < span) requestAnimationFrame(frame);
+      else finish();
     })(t0);
   }
 
@@ -643,8 +678,10 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 
 
   /* ---------- data ---------- */
-  function record(t, h){
-    trials.push({t: t, h: h, g: 2*h/(t*t)});
+  function record(reading, h, tTrue){
+    // g is computed the way a student would: from the height they wrote down and the
+    // time their stopwatch showed. Both carry error, and that is the point.
+    trials.push({t: reading, h: h, tTrue: tTrue, g: 2*h/(reading*reading)});
     render();
   }
 
@@ -656,6 +693,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       log.innerHTML = '<div class="empty">No trials yet. Drop the ball to start recording.</div>';
       $('sN').textContent = '0';
       $('sMean').textContent = $('sSD').textContent = $('sSE').textContent = '—';
+      $('sTrue').textContent = '—';
       $('gVal').innerHTML = '—<small>m/s²</small>';
       $('gErr').textContent = 'Measured g appears after the first drop.';
       return;
@@ -667,6 +705,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     const se = n > 1 ? sd/Math.sqrt(n) : 0;
 
     const hMean = trials.reduce((a,x)=>a+x.h,0)/n;
+    const trueMean = trials.reduce((a,x)=>a+x.tTrue,0)/n;
     const gMeas = 2*hMean/(mean*mean);
     const err = (gMeas - G)/G*100;
 
@@ -674,6 +713,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     $('sMean').textContent = mean.toFixed(4) + ' s';
     $('sSD').textContent = n > 1 ? sd.toFixed(4) + ' s' : '—';
     $('sSE').textContent = n > 1 ? '± ' + se.toFixed(4) + ' s' : '—';
+    $('sTrue').textContent = trueMean.toFixed(4) + ' s';
 
     $('gVal').innerHTML = gMeas.toFixed(2) + '<small>m/s²</small>';
     $('gErr').innerHTML = 'From mean time over ' + n + ' trial' + (n>1?'s':'') +
@@ -697,8 +737,9 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   btnClear.addEventListener('click', () => { trials = []; render(); });
 
   btnExport.addEventListener('click', () => {
-    const rows = [['trial','height_m','time_s','g_m_s2']]
-      .concat(trials.map((x,i)=>[i+1, x.h.toFixed(3), x.t.toFixed(4), x.g.toFixed(3)]));
+    const rows = [['trial','height_m','stopwatch_s','true_fall_s','timing_error_s','g_m_s2']]
+      .concat(trials.map((x,i)=>[i+1, x.h.toFixed(3), x.t.toFixed(3),
+                                 x.tTrue.toFixed(4), (x.t-x.tTrue).toFixed(4), x.g.toFixed(3)]));
     const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
