@@ -130,6 +130,21 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 }
 .ball.armed::after{opacity:1}
 .ghost{position:absolute;left:78px;right:20px;height:1px;background:var(--signal);opacity:.30}
+.strobe{
+  position:absolute;width:34px;height:34px;border-radius:50%;
+  border:1.5px solid rgba(232,68,43,.55);pointer-events:none;
+}
+.strobe span{
+  position:absolute;left:42px;top:50%;transform:translateY(-50%);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fff;opacity:.5;white-space:nowrap;
+}
+.speed{display:flex;border:1.5px solid var(--graphite)}
+.speed button{
+  flex:1;margin:0;border:none;border-right:1.5px solid var(--graphite);
+  padding:9px 4px;font-size:11px;letter-spacing:.04em;
+}
+.speed button:last-child{border-right:none}
+.speed button[aria-pressed=true]{background:var(--graphite);color:var(--paper)}
 .hline{position:absolute;left:78px;right:20px;height:1px;background:rgba(255,255,255,.35);
   border-top:1px dashed rgba(255,255,255,.5);background:none}
 .readout{
@@ -210,6 +225,16 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       <input type="range" id="rand" min="0" max="20" step="0.5" value="5">
     </div>
 
+    <div class="field">
+      <label>Playback speed</label>
+      <div class="speed" id="speed">
+        <button data-rate="1" aria-pressed="true">Real</button>
+        <button data-rate="0.25" aria-pressed="false">1/4×</button>
+        <button data-rate="0.1" aria-pressed="false">1/10×</button>
+        <button data-rate="0.04" aria-pressed="false">1/25×</button>
+      </div>
+    </div>
+
     <div class="btns">
       <button class="primary" id="drop">Drop ball</button>
       <button id="randomH">New random height</button>
@@ -231,10 +256,11 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
       <div class="readout">
         <div class="lbl">Stopwatch</div>
         <div class="t mono" id="watch">0.000<small>s</small></div>
+        <div class="h mono" id="vRead">0.00 m/s</div>
         <div class="h mono" id="hRead">release height 1.250 m</div>
       </div>
     </div>
-    <p class="hint">Drag the ball, or use ↑ ↓ arrow keys, to set the release height.</p>
+    <p class="hint">Drag the ball, or use ↑ ↓ arrow keys, to set the release height. Slow the playback to leave strobe marks every 0.1 s of the fall.</p>
   </section>
 
   <!-- ================= data ================= -->
@@ -276,6 +302,16 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   let trials = [];        // {t, h}
   let pxPerM = 100;
   let dropping = false;
+  let rate = 1;                    // playback speed: 1 = real time, 0.1 = ten times slower
+  const vRead = $('vRead');
+
+  $('speed').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if(!b || dropping) return;
+    rate = parseFloat(b.dataset.rate);
+    $('speed').querySelectorAll('button').forEach(x =>
+      x.setAttribute('aria-pressed', x === b));
+  });
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- ruler ---------- */
@@ -312,6 +348,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   }
 
   function setHeight(h, fromInput){
+    if(!dropping) clearStrobes();
     height = Math.min(MAX_H, Math.max(MIN_H, h));
     place(height);
     ball.setAttribute('aria-valuenow', height.toFixed(3));
@@ -382,24 +419,56 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     });
   }
 
+  function clearStrobes(){
+    tower.querySelectorAll('.strobe').forEach(n => n.remove());
+  }
+
+  function addStrobe(h, label){
+    const s = document.createElement('div');
+    s.className = 'strobe';
+    s.style.left = ball.offsetLeft + 'px';
+    s.style.bottom = (h * pxPerM) + 'px';
+    s.innerHTML = '<span>' + label + '</span>';
+    tower.appendChild(s);
+  }
+
   function animate(t, done){
     const h0 = height;
-    if(reduced){
-      place(0); watch.innerHTML = t.toFixed(4) + '<small>s</small>';
+    clearStrobes();
+
+    // stopwatch always shows physical time; only wall-clock duration is stretched
+    const wall = t / rate;
+    const strobeStep = rate < 1 ? 0.1 : 0;   // strobe marks every 0.1 s of fall
+    let nextStrobe = strobeStep;
+
+    if(reduced && rate === 1){
+      place(0);
+      watch.innerHTML = t.toFixed(4) + '<small>s</small>';
+      vRead.textContent = (G*t).toFixed(2) + ' m/s';
       setTimeout(done, 180);
       return;
     }
+
     const t0 = performance.now();
     (function frame(now){
-      const el = Math.min(t, (now - t0)/1000);
+      const el = Math.min(t, ((now - t0)/1000) * rate);   // elapsed fall time, in seconds
       const frac = el / t;
-      place(h0 * (1 - frac*frac));                 // quadratic fall: y = h(1 − (τ/t)²)
+      const h = h0 * (1 - frac*frac);                     // quadratic fall: y = h(1 − (τ/t)²)
+      place(h);
       watch.innerHTML = el.toFixed(3) + '<small>s</small>';
+      vRead.textContent = (2*h0*frac/t).toFixed(2) + ' m/s';
+
+      while(strobeStep && el >= nextStrobe && nextStrobe < t){
+        addStrobe(h0 * (1 - (nextStrobe/t)**2), nextStrobe.toFixed(1) + ' s');
+        nextStrobe += strobeStep;
+      }
+
       if(el < t) requestAnimationFrame(frame);
       else{
         place(0);
         watch.innerHTML = t.toFixed(4) + '<small>s</small>';
-        setTimeout(done, 160);
+        vRead.textContent = (2*h0/t).toFixed(2) + ' m/s';
+        setTimeout(done, rate < 1 ? 600 : 160);
       }
     })(t0);
   }
