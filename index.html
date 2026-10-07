@@ -98,6 +98,10 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 .counter .n{font-size:34px;font-weight:500;line-height:1}
 .counter .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.55;margin-bottom:5px}
 .hint{margin-top:12px;font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+.vlegend{position:absolute;left:18px;bottom:16px;display:flex;flex-direction:column;gap:5px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fff;pointer-events:none}
+.vlegend span{display:flex;align-items:center;gap:7px;opacity:.85}
+.vlegend i{width:16px;height:0;border-top:3px solid currentColor;display:inline-block}
 
 /* ---------- free-fall tower ---------- */
 .tower{position:absolute;left:0;right:0;bottom:46px;top:26px}
@@ -127,6 +131,8 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 .graphs{display:grid;gap:12px;margin-top:14px}
 #lab-fall .graphs{grid-template-columns:repeat(3,1fr)}
 #lab-pend .graphs{grid-template-columns:1fr 1fr}
+#lab-proj .graphs{grid-template-columns:1fr 1fr}
+#lab-mag .graphs{grid-template-columns:1fr 1fr}
 .graph{border:1.5px solid var(--graphite);background:var(--paper-2);padding:10px 10px 6px}
 .graph .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:8px}
 .graph .name{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
@@ -135,6 +141,8 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 .graph canvas{display:block;width:100%}
 #lab-fall .graph canvas{height:104px}
 #lab-pend .graph canvas{height:150px}
+#lab-proj .graph canvas{height:150px}
+#lab-mag .graph canvas{height:150px}
 
 /* ---------- results ---------- */
 .gcard{border:1.5px solid var(--graphite);padding:14px;margin-bottom:14px;background:var(--paper-2)}
@@ -150,13 +158,15 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 .log .row{display:grid;gap:9px;padding:6px 2px;border-bottom:1px solid rgba(21,24,28,.1)}
 #lab-fall .log .row{grid-template-columns:auto 1fr auto}
 #lab-pend .log .row{grid-template-columns:auto 1fr auto auto}
+#lab-proj .log .row{grid-template-columns:auto auto 1fr auto}
+#lab-mag .log .row{grid-template-columns:auto 1fr 1fr auto}
 .log .n{color:var(--muted)}
 .log .g{color:var(--signal)}
 .log .hd{color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
   border-bottom:1.5px solid rgba(21,24,28,.3)}
 .empty{padding:16px 2px;color:var(--muted);font-size:13px;font-family:'IBM Plex Sans',sans-serif}
 
-@media (max-width:1200px){#lab-fall .graphs,#lab-pend .graphs{grid-template-columns:1fr}
+@media (max-width:1200px){#lab-fall .graphs,#lab-pend .graphs,#lab-proj .graphs,#lab-mag .graphs{grid-template-columns:1fr}
   #lab-fall .graph canvas{height:88px}}
 @media (max-width:900px){
   .lab{grid-template-columns:1fr}
@@ -168,6 +178,28 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   .tabs{margin-left:0;width:100%}
   .tabs button{flex:1}
 }
+/* ---------- data generator ---------- */
+#lab-data{grid-template-columns:300px minmax(320px,1fr)}
+#lab-data .out{padding:20px;overflow:auto}
+.dynfields{display:grid;gap:12px}
+.dynfields .mini{display:flex;gap:8px}
+.dynfields .mini .field{flex:1;margin:0}
+.datahead{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;margin-bottom:14px}
+.datahead .title{font-family:'Archivo',sans-serif;font-weight:900;font-size:20px;letter-spacing:-.02em}
+.datahead .meta{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)}
+.datahead .meta b{color:var(--signal)}
+.dtable{border-collapse:collapse;width:100%;font-family:'IBM Plex Mono',monospace;font-size:13px;background:#fff;
+  border:1.5px solid var(--graphite)}
+.dtable th,.dtable td{border:1px solid rgba(21,24,28,.18);padding:7px 10px;text-align:right;white-space:nowrap}
+.dtable th{background:var(--paper-2);font-weight:600;letter-spacing:.02em}
+.dtable thead th{border-bottom:1.5px solid var(--graphite)}
+.dtable .iv{text-align:left;font-weight:600;background:var(--paper-2)}
+.dtable .mean{color:var(--signal);font-weight:600;border-left:1.5px solid var(--graphite)}
+.dtable t.grp td{border-top:1.5px solid rgba(21,24,28,.4)}
+.datanote{margin-top:14px;font-size:13px;color:var(--muted);line-height:1.5}
+.datanote b{color:var(--graphite)}
+.data-empty{color:var(--muted);font-size:14px;padding:30px 4px}
+@media (max-width:900px){#lab-data{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -180,6 +212,9 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
   <div class="tabs" role="tablist" aria-label="Choose an experiment">
     <button role="tab" data-lab="lab-fall" data-tag="free-fall timing bench" aria-selected="true">Free fall</button>
     <button role="tab" data-lab="lab-pend" data-tag="period timing bench" aria-selected="false">Pendulum</button>
+    <button role="tab" data-lab="lab-proj" data-tag="projectile components bench" aria-selected="false">Projectile</button>
+    <button role="tab" data-lab="lab-mag" data-tag="magnetic force bench · F = BIL sinθ" aria-selected="false">Magnetism</button>
+    <button role="tab" data-lab="lab-data" data-tag="dataset generator" aria-selected="false">Data generator</button>
   </div>
 </header>
 
@@ -428,6 +463,268 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     <div class="log" id="p_log">
       <div class="empty">No runs yet. Time a run to start recording.</div>
     </div>
+  </section>
+
+</div>
+
+<div class="lab" id="lab-proj" hidden>
+
+  <section class="panel">
+    <div class="eyebrow">Launch</div>
+
+    <div class="field">
+      <label for="j_speed">Launch speed <span class="u">(m/s)</span></label>
+      <input type="number" id="j_speed" value="20" min="1" max="60" step="0.5">
+    </div>
+
+    <div class="field">
+      <div class="rowval">
+        <label for="j_angle">Launch angle <span class="u">(above horizontal)</span></label>
+        <span class="v mono" id="j_angleOut">45°</span>
+      </div>
+      <input type="range" id="j_angle" min="0" max="90" step="1" value="45">
+    </div>
+
+    <div class="field">
+      <label for="j_height">Launch height <span class="u">(m above ground)</span></label>
+      <input type="number" id="j_height" value="0" min="0" max="50" step="0.5">
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Show on screen</div>
+
+    <div class="field">
+      <label class="check"><input type="checkbox" id="j_comp" checked> Horizontal &amp; vertical components</label>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="j_res" checked> Resultant velocity vector</label>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="j_trail" checked> Trace the path</label>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" id="j_strobe"> Strobe every 0.2 s</label>
+    </div>
+
+    <div class="field">
+      <label>Playback speed</label>
+      <div class="seg" id="j_speedsel">
+        <button data-rate="0.25" aria-pressed="false">1/4×</button>
+        <button data-rate="0.5" aria-pressed="true">1/2×</button>
+        <button data-rate="1" aria-pressed="false">Real</button>
+        <button data-rate="2" aria-pressed="false">2×</button>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="j_launch">Launch</button>
+      <button id="j_clear" disabled>Clear results</button>
+      <button id="j_export" disabled>Export CSV</button>
+    </div>
+  </section>
+
+  <section class="stage-wrap">
+    <div class="stage" id="j_stage">
+      <canvas id="j_cv"></canvas>
+      <div class="readout">
+        <div class="lbl">Speed</div>
+        <div class="t mono" id="j_vRead">0.0<small>m/s</small></div>
+        <div class="h mono" id="j_compRead">vₓ 14.1 · v_y 14.1 m/s</div>
+        <div class="h mono" id="j_posRead">x 0.0 m · y 0.0 m · t 0.00 s</div>
+      </div>
+      <div class="vlegend">
+        <span style="color:#5BC8D8"><i></i>vₓ — horizontal (constant)</span>
+        <span style="color:#E8442B"><i></i>v_y — vertical (changes by g)</span>
+        <span style="color:#fff"><i></i>v — resultant</span>
+      </div>
+    </div>
+    <p class="hint">Set speed and angle, then launch. vₓ stays fixed; v_y loses 9.81 m/s every second. The path is the two component motions happening at once.</p>
+
+    <div class="graphs">
+      <figure class="graph">
+        <div class="head"><span class="name">Velocity components vs t</span><span class="now mono" id="j_nVel">—</span></div>
+        <canvas id="j_gVel"></canvas>
+      </figure>
+      <figure class="graph">
+        <div class="head"><span class="name">Displacement components vs t</span><span class="now mono" id="j_nPos">—</span></div>
+        <canvas id="j_gPos"></canvas>
+      </figure>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="eyebrow">Flight</div>
+
+    <div class="gcard">
+      <div class="big mono" id="j_range">—<small>m range</small></div>
+      <div class="err" id="j_rangeNote">Launch to see the flight resolved into components.</div>
+    </div>
+
+    <dl class="stats">
+      <dt>Horizontal vₓ = v cosθ</dt><dd id="j_vx">14.14 m/s</dd>
+      <dt>Vertical v_y = v sinθ</dt><dd id="j_vy">14.14 m/s</dd>
+      <dt>Time of flight</dt><dd id="j_tof">—</dd>
+      <dt>Maximum height</dt><dd id="j_hmax">—</dd>
+      <dt>Impact speed</dt><dd id="j_vimp">—</dd>
+    </dl>
+
+    <div class="log" id="j_log">
+      <div class="empty">No launches yet. Try the same speed at 30° and 60°.</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="lab" id="lab-mag" hidden>
+
+  <section class="panel">
+    <div class="eyebrow">F = B I L sinθ</div>
+
+    <div class="field">
+      <label for="m_B">Flux density B <span class="u">(tesla)</span></label>
+      <input type="number" id="m_B" value="0.50" min="0" max="2" step="0.01">
+    </div>
+    <div class="field">
+      <label for="m_I">Current I <span class="u">(ampere)</span></label>
+      <input type="number" id="m_I" value="2.0" min="0" max="10" step="0.1">
+    </div>
+    <div class="field">
+      <label for="m_L">Length in field L <span class="u">(metre)</span></label>
+      <input type="number" id="m_L" value="0.10" min="0" max="0.5" step="0.005">
+    </div>
+    <div class="field">
+      <div class="rowval">
+        <label for="m_ang">Angle θ <span class="u">(current to field)</span></label>
+        <span class="v mono" id="m_angOut">90°</span>
+      </div>
+      <input type="range" id="m_ang" min="0" max="180" step="1" value="90">
+    </div>
+
+    <div class="field">
+      <label>Plot F against</label>
+      <div class="seg" id="m_ivsel">
+        <button data-v="B" aria-pressed="false">B</button>
+        <button data-v="I" aria-pressed="true">I</button>
+        <button data-v="L" aria-pressed="false">L</button>
+        <button data-v="ang" aria-pressed="false">θ</button>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="m_record">Record this point</button>
+      <button id="m_clear" disabled>Clear results</button>
+      <button id="m_export" disabled>Export CSV</button>
+    </div>
+  </section>
+
+  <section class="stage-wrap">
+    <div class="stage" id="m_stage">
+      <canvas id="m_cv"></canvas>
+      <div class="readout">
+        <div class="lbl">Force on wire</div>
+        <div class="t mono" id="m_FRead">0.100<small>N</small></div>
+        <div class="h mono" id="m_formula">0.50 × 2.0 × 0.10 × sin90°</div>
+      </div>
+      <div class="vlegend">
+        <span style="color:#5BC8D8"><i></i>B — magnetic field</span>
+        <span style="color:#E8442B"><i></i>I — current in wire</span>
+        <span style="color:#fff"><i></i>F — force (⊙ out of page)</span>
+      </div>
+    </div>
+    <p class="hint">B points across the field region; the wire sits at angle θ to it. The force is perpendicular to both — out of the screen — and follows F = BIL sinθ.</p>
+
+    <div class="graphs">
+      <figure class="graph">
+        <div class="head"><span class="name" id="m_g1name">F vs I</span><span class="now mono" id="m_g1now">—</span></div>
+        <canvas id="m_g1"></canvas>
+      </figure>
+      <figure class="graph">
+        <div class="head"><span class="name">F vs angle θ</span><span class="now mono" id="m_g2now">—</span></div>
+        <canvas id="m_g2"></canvas>
+      </figure>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="eyebrow">Force</div>
+
+    <div class="gcard">
+      <div class="big mono" id="m_big">0.100<small>N</small></div>
+      <div class="err" id="m_bignote">Perpendicular to both B and I, by the right-hand rule.</div>
+    </div>
+
+    <dl class="stats">
+      <dt>B · I · L</dt><dd id="m_bil">0.100 N</dd>
+      <dt>sin θ</dt><dd id="m_sin">1.000</dd>
+      <dt>Max force (θ = 90°)</dt><dd id="m_fmax">0.100 N</dd>
+      <dt>At θ = 0° (parallel)</dt><dd>0 N</dd>
+    </dl>
+
+    <div class="log" id="m_log">
+      <div class="empty">No points recorded. Record a few to build a set by hand.</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="lab" id="lab-data">
+
+  <section class="panel">
+    <div class="eyebrow">Dataset generator</div>
+
+    <div class="field">
+      <label for="d_exp">Experiment</label>
+      <input type="hidden" id="d_expval">
+      <div class="seg" id="d_exp" style="flex-wrap:wrap">
+        <button data-exp="fall" aria-pressed="true">Free fall</button>
+        <button data-exp="pend" aria-pressed="false">Pendulum</button>
+        <button data-exp="proj" aria-pressed="false">Projectile</button>
+        <button data-exp="mag" aria-pressed="false">Magnetism</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="d_iv">Independent variable</label>
+      <select id="d_iv" style="width:100%;padding:9px 10px;border:1.5px solid var(--graphite);background:#fff;font-family:'IBM Plex Mono',monospace;font-size:14px;border-radius:0"></select>
+    </div>
+
+    <div class="field mini" style="display:flex;gap:8px">
+      <div class="field" style="flex:1;margin:0"><label for="d_min">From</label><input type="number" id="d_min" step="any"></div>
+      <div class="field" style="flex:1;margin:0"><label for="d_max">To</label><input type="number" id="d_max" step="any"></div>
+      <div class="field" style="flex:1;margin:0"><label for="d_pts">Points</label><input type="number" id="d_pts" value="5" min="3" max="7" step="1"></div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:18px">Fixed quantities</div>
+    <div class="dynfields" id="d_params"></div>
+
+    <div class="eyebrow" style="margin-top:18px">Trials &amp; error</div>
+
+    <div class="field">
+      <div class="rowval"><label for="d_trials">Trials per point</label><span class="v mono" id="d_trialsOut">5</span></div>
+      <input type="range" id="d_trials" min="3" max="5" step="1" value="5">
+    </div>
+
+    <div class="field">
+      <div class="rowval"><label for="d_rand">Random uncertainty <span class="u" id="d_randU">(±, reliability)</span></label><span class="v mono" id="d_randOut">—</span></div>
+      <input type="range" id="d_rand" min="0" max="100" step="1" value="30">
+    </div>
+
+    <div class="field">
+      <div class="rowval"><label for="d_sys">Systematic error <span class="u">(validity)</span></label><span class="v mono" id="d_sysOut">+0%</span></div>
+      <input type="range" id="d_sys" min="-15" max="15" step="0.5" value="0">
+    </div>
+
+    <div class="field">
+      <label class="check"><input type="checkbox" id="d_round" checked> Round to instrument precision</label>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="d_gen">Generate dataset</button>
+      <button id="d_export" disabled>Export CSV</button>
+    </div>
+  </section>
+
+  <section class="out" id="d_out">
+    <div class="data-empty">Choose an experiment and independent variable, set the range and error, then generate. Each point is repeated across several trials with realistic scatter, so students can average, find a gradient, and discuss reliability (spread) and validity (systematic error) — just like the IA data test.</div>
   </section>
 
 </div>
@@ -1250,10 +1547,619 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 </script>
 
 <script>
+/* =====================================================================
+   PROJECTILE LAB — ideal projectile motion, resolved into components
+   ===================================================================== */
+(function(){
+  "use strict";
+  const G = 9.81, TAU = Math.PI*2, D2R = Math.PI/180;
+  const $ = id => document.getElementById('j_' + id);
+  const CYAN = '#5BC8D8', RED = '#E8442B';
+
+  const cv=$('cv');
+  const speedIn=$('speed'), angleIn=$('angle'), heightIn=$('height');
+  const compChk=$('comp'), resChk=$('res'), trailChk=$('trail'), strobeChk=$('strobe');
+  const btnLaunch=$('launch'), btnClear=$('clear'), btnExport=$('export');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let speed = 20, angle = 45, h0 = 0, rate = 0.5;
+  let flying = false, launches = [];
+  let scale = 20, originX = 60, groundY = 300, velScale = 4;
+  let trail = [];
+
+  /* ---------- the physics (all deterministic) ---------- */
+  const vx    = () => speed*Math.cos(angle*D2R);
+  const vy0   = () => speed*Math.sin(angle*D2R);
+  const tof   = () => { const u = vy0(); return (u + Math.sqrt(u*u + 2*G*h0))/G; };
+  const xAt   = t => vx()*t;
+  const yAt   = t => h0 + vy0()*t - 0.5*G*t*t;
+  const vyAt  = t => vy0() - G*t;
+  const hmax  = () => h0 + vy0()*vy0()/(2*G);
+  const range = () => vx()*tof();
+  const vimp  = () => Math.hypot(vx(), vyAt(tof()));
+
+  /* ---------- canvas helpers ---------- */
+  function sizeCanvas(c){
+    const dpr = window.devicePixelRatio || 1;
+    c.width = c.clientWidth*dpr; c.height = c.clientHeight*dpr;
+    const x = c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+    return x;
+  }
+  function niceStep(span, n){
+    const raw = Math.max(span,1e-6)/n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/p;
+    return (f<1.5?1:f<3?2:f<7?5:10)*p;
+  }
+  function arrow(x, x1, y1, x2, y2, color, w){
+    const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy);
+    x.strokeStyle = color; x.fillStyle = color; x.lineWidth = w;
+    x.beginPath(); x.moveTo(x1,y1); x.lineTo(x2,y2); x.stroke();
+    if(len < 6) return;
+    const a = Math.atan2(dy,dx), hd = 8;
+    x.beginPath(); x.moveTo(x2,y2);
+    x.lineTo(x2 - hd*Math.cos(a-0.4), y2 - hd*Math.sin(a-0.4));
+    x.lineTo(x2 - hd*Math.cos(a+0.4), y2 - hd*Math.sin(a+0.4));
+    x.closePath(); x.fill();
+  }
+
+  /* ---------- the stage ---------- */
+  function drawStage(t){               // t = seconds into flight, or null for the idle preview
+    if(cv.clientWidth < 40 || cv.clientHeight < 40) return;
+    const x = sizeCanvas(cv), W = cv.clientWidth, H = cv.clientHeight;
+    const padL = 54, padR = 20, padTop = 24, padBot = 40;
+    const T = Math.max(tof(), 0.001);
+    const xW = Math.max(range(), 1) * 1.08;
+    const yW = Math.max(hmax(), h0, 1) * 1.15;
+    scale = Math.min((W-padL-padR)/xW, (H-padTop-padBot)/yW);
+    originX = padL; groundY = H - padBot;
+    velScale = 95/Math.max(speed,1);
+
+    const PX = mx => originX + mx*scale;
+    const PY = my => groundY - my*scale;
+    x.clearRect(0,0,W,H);
+
+    // ground + horizontal distance ticks
+    x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(0, groundY); x.lineTo(W, groundY); x.stroke();
+    x.fillStyle = 'rgba(255,255,255,.5)'; x.font = '10px "IBM Plex Mono", monospace';
+    x.textAlign = 'center'; x.textBaseline = 'top';
+    const xs = niceStep(xW, 6);
+    for(let d = 0; d <= xW; d += xs){
+      const px = PX(d); if(px > W-6) break;
+      x.strokeStyle = 'rgba(255,255,255,.18)';
+      x.beginPath(); x.moveTo(px, groundY); x.lineTo(px, groundY+5); x.stroke();
+      x.fillText(d.toFixed(xs<1?1:0), px, groundY+7);
+    }
+    // vertical height ticks up the left edge
+    x.textAlign = 'right'; x.textBaseline = 'middle';
+    const ys = niceStep(yW, 4);
+    for(let hgt = 0; hgt <= yW; hgt += ys){
+      const py = PY(hgt); if(py < padTop) break;
+      x.strokeStyle = 'rgba(255,255,255,.14)';
+      x.beginPath(); x.moveTo(originX-5, py); x.lineTo(W, py); x.stroke();
+      x.fillStyle = 'rgba(255,255,255,.4)';
+      x.fillText(hgt.toFixed(ys<1?1:0)+'m', originX-8, py);
+    }
+
+    // predicted path, faint
+    x.strokeStyle = 'rgba(255,255,255,.28)'; x.setLineDash([4,4]); x.lineWidth = 1.25;
+    x.beginPath();
+    for(let i = 0; i <= 120; i++){ const tt = T*i/120; (i?x.lineTo:x.moveTo).call(x, PX(xAt(tt)), PY(yAt(tt))); }
+    x.stroke(); x.setLineDash([]);
+
+    // flown trail
+    if(trailChk.checked && trail.length > 1){
+      x.strokeStyle = RED; x.lineWidth = 2.5;
+      x.beginPath(); trail.forEach((p,i)=> (i?x.lineTo:x.moveTo).call(x, PX(p.x), PY(p.y))); x.stroke();
+    }
+    // strobe marks
+    if(strobeChk.checked){
+      const end = t == null ? T : t;
+      x.strokeStyle = 'rgba(255,255,255,.5)';
+      for(let s = 0.2; s <= end + 1e-6; s += 0.2){
+        x.beginPath(); x.arc(PX(xAt(s)), PY(yAt(s)), 3, 0, TAU); x.stroke();
+      }
+    }
+
+    // the bob and its vectors — at the current instant, or at the launch point when idle
+    const tt = t == null ? 0 : t;
+    const bx = PX(xAt(tt)), by = PY(yAt(tt));
+    const vxv = vx(), vyv = vyAt(tt);
+
+    if(compChk.checked || resChk.checked){
+      const cxEnd = bx + vxv*velScale, cyEnd = by - vyv*velScale;
+      if(compChk.checked && resChk.checked){     // dashed parallelogram: components add to resultant
+        x.strokeStyle = 'rgba(255,255,255,.35)'; x.setLineDash([3,3]); x.lineWidth = 1;
+        x.beginPath(); x.moveTo(cxEnd, by); x.lineTo(cxEnd, cyEnd);
+        x.moveTo(bx, cyEnd); x.lineTo(cxEnd, cyEnd); x.stroke(); x.setLineDash([]);
+      }
+      if(compChk.checked){
+        arrow(x, bx, by, bx + vxv*velScale, by, CYAN, 3);      // horizontal
+        arrow(x, bx, by, bx, by - vyv*velScale, RED, 3);       // vertical
+      }
+      if(resChk.checked) arrow(x, bx, by, cxEnd, cyEnd, '#fff', 2);
+    }
+
+    const grd = x.createRadialGradient(bx-5, by-6, 1, bx, by, 13);
+    grd.addColorStop(0,'#ff8b76'); grd.addColorStop(.6,RED); grd.addColorStop(1,'#a52a17');
+    x.fillStyle = grd; x.strokeStyle = '#fff'; x.lineWidth = 2;
+    x.beginPath(); x.arc(bx, by, 11, 0, TAU); x.fill(); x.stroke();
+
+    // live readouts
+    const spd = Math.hypot(vxv, vyv);
+    $('vRead').innerHTML = spd.toFixed(1) + '<small>m/s</small>';
+    $('compRead').textContent = 'vₓ ' + vxv.toFixed(1) + ' · v_y ' + vyv.toFixed(1) + ' m/s';
+    $('posRead').textContent = 'x ' + xAt(tt).toFixed(1) + ' m · y ' + Math.max(0,yAt(tt)).toFixed(1) +
+                               ' m · t ' + tt.toFixed(2) + ' s';
+  }
+
+  /* ---------- graphs ---------- */
+  const PAD = {l:38, r:10, t:10, b:20};
+  function frame(c){
+    if(c.clientWidth < 40 || c.clientHeight < 40) return null;
+    const x = sizeCanvas(c), W = c.clientWidth, H = c.clientHeight;
+    x.clearRect(0,0,W,H);
+    return {x, W, H, x0:PAD.l, y0:H-PAD.b, w:W-PAD.l-PAD.r, h:H-PAD.t-PAD.b};
+  }
+  function gridY(f, yMin, yMax, unit){
+    const {x,x0,y0,w,h} = f;
+    x.font = '9px "IBM Plex Mono", monospace'; x.lineWidth = 1;
+    for(let i = 0; i <= 2; i++){
+      const v = yMin + (yMax-yMin)*i/2, y = Math.round(y0 - (v-yMin)/(yMax-yMin)*h) + .5;
+      x.strokeStyle = (Math.abs(v) < 1e-9 && yMin < 0) ? 'rgba(21,24,28,.45)' : 'rgba(21,24,28,.14)';
+      x.beginPath(); x.moveTo(x0, y); x.lineTo(x0+w, y); x.stroke();
+      x.fillStyle = '#6E7681'; x.textAlign = 'right'; x.textBaseline = 'middle';
+      x.fillText(v.toFixed(0), x0-5, y);
+    }
+    x.strokeStyle = 'rgba(21,24,28,.5)';
+    x.beginPath(); x.moveTo(x0+.5, PAD.t); x.lineTo(x0+.5, y0+.5); x.stroke();
+    x.fillStyle='#6E7681'; x.textAlign='left'; x.textBaseline='top'; x.fillText(unit, x0+2, PAD.t);
+  }
+  function series(f, T, tau, fn, yMin, yMax, color, dashFull){
+    const {x,x0,y0,w,h} = f;
+    const PX = t => x0 + t/T*w, PY = v => y0 - (v-yMin)/(yMax-yMin)*h;
+    x.strokeStyle = color; x.globalAlpha = .28; x.lineWidth = 1.25;
+    if(dashFull) x.setLineDash([4,3]);
+    x.beginPath();
+    for(let i=0;i<=100;i++){ const t=T*i/100; (i?x.lineTo:x.moveTo).call(x, PX(t), PY(fn(t))); }
+    x.stroke(); x.setLineDash([]); x.globalAlpha = 1;
+    if(tau != null && tau > 0){
+      x.lineWidth = 2.25; x.beginPath();
+      const steps = Math.max(40, Math.round(tau/T*100));
+      for(let i=0;i<=steps;i++){ const t=tau*i/steps; (i?x.lineTo:x.moveTo).call(x, PX(t), PY(fn(t))); }
+      x.stroke();
+      x.fillStyle = color; x.beginPath(); x.arc(PX(tau), PY(fn(tau)), 3, 0, TAU); x.fill();
+    }
+  }
+
+  function drawVel(tau){
+    const f = frame($('gVel')); if(!f) return;
+    const T = Math.max(tof(), 0.001);
+    const mag = Math.max(vx(), vy0(), Math.abs(vyAt(T)), 1);
+    const yMin = -Math.ceil(mag/5)*5, yMax = Math.ceil(mag/5)*5;
+    gridY(f, yMin, yMax, 'm/s');
+    series(f, T, tau, () => vx(),  yMin, yMax, CYAN, true);   // horizontal: flat
+    series(f, T, tau, t => vyAt(t), yMin, yMax, RED, true);   // vertical: slopes by -g
+    const tt = tau == null ? 0 : tau;
+    $('nVel').innerHTML = '<span style="color:'+CYAN+'">vₓ '+vx().toFixed(1)+
+      '</span> · <span style="color:'+RED+'">v_y '+vyAt(tt).toFixed(1)+'</span>';
+  }
+  function drawPos(tau){
+    const f = frame($('gPos')); if(!f) return;
+    const T = Math.max(tof(), 0.001);
+    const yMax = Math.max(range(), hmax(), 1)*1.1;
+    gridY(f, 0, yMax, 'm');
+    series(f, T, tau, t => xAt(t), 0, yMax, CYAN, true);      // horizontal distance: straight
+    series(f, T, tau, t => Math.max(0,yAt(t)), 0, yMax, RED, true);  // height: parabola
+    const tt = tau == null ? 0 : tau;
+    $('nPos').innerHTML = '<span style="color:'+CYAN+'">x '+xAt(tt).toFixed(1)+
+      '</span> · <span style="color:'+RED+'">y '+Math.max(0,yAt(tt)).toFixed(1)+'</span>';
+  }
+
+  function redraw(t){ drawStage(t); drawVel(t); drawPos(t); }
+
+  /* ---------- keeping the panel in step with the inputs ---------- */
+  function sync(){
+    speed = Math.max(0.1, parseFloat(speedIn.value) || 0);
+    angle = Math.min(90, Math.max(0, parseFloat(angleIn.value) || 0));
+    h0 = Math.max(0, parseFloat(heightIn.value) || 0);
+    $('angleOut').textContent = Math.round(angle) + '°';
+    $('vx').textContent = vx().toFixed(2) + ' m/s';
+    $('vy').textContent = vy0().toFixed(2) + ' m/s';
+    $('tof').textContent = tof().toFixed(2) + ' s';
+    $('hmax').textContent = hmax().toFixed(2) + ' m';
+    $('vimp').textContent = vimp().toFixed(2) + ' m/s';
+    if(!launches.length){
+      $('range').innerHTML = range().toFixed(1) + '<small>m range</small>';
+      $('rangeNote').textContent = 'Predicted — launch to watch it resolve into components.';
+    }
+    if(!flying){ trail = []; redraw(null); }
+  }
+
+  speedIn.addEventListener('input', sync);
+  angleIn.addEventListener('input', sync);
+  heightIn.addEventListener('input', sync);
+  [compChk,resChk,trailChk,strobeChk].forEach(c => c.addEventListener('change', () => { if(!flying) redraw(null); }));
+  $('speedsel').addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b || flying) return;
+    rate = parseFloat(b.dataset.rate);
+    $('speedsel').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  });
+
+  /* ---------- a launch ---------- */
+  function launch(){
+    if(flying) return;
+    sync();
+    const T = Math.max(tof(), 0.001);
+    const snap = {angle: Math.round(angle), speed: speed, h0: h0,
+                  range: range(), tof: tof(), hmax: hmax(), vimp: vimp()};
+    flying = true; trail = [];
+    btnLaunch.disabled = true;
+
+    const finish = () => {
+      flying = false; btnLaunch.disabled = false;
+      record(snap); redraw(T);
+    };
+    if(reduced){ for(let i=0;i<=60;i++){ const t=T*i/60; trail.push({x:xAt(t),y:yAt(t)}); } finish(); return; }
+
+    const t0 = performance.now();
+    (function step(now){
+      const tau = Math.min(T, ((now-t0)/1000)*rate);
+      trail.push({x: xAt(tau), y: Math.max(0, yAt(tau))});
+      redraw(tau);
+      if(tau < T) requestAnimationFrame(step); else finish();
+    })(t0);
+  }
+
+  /* ---------- results ---------- */
+  function record(s){
+    launches.push(s);
+    btnClear.disabled = btnExport.disabled = false;
+    $('range').innerHTML = s.range.toFixed(1) + '<small>m range</small>';
+    const best = (angle === 45 && h0 === 0);
+    $('rangeNote').innerHTML = 'At ' + s.angle + '° from ' + s.speed.toFixed(1) + ' m/s' +
+      (best ? ' · <b>45° gives maximum range on level ground</b>' : '');
+    render();
+  }
+
+  function render(){
+    const n = launches.length;
+    if(!n){
+      $('log').innerHTML = '<div class="empty">No launches yet. Try the same speed at 30° and 60°.</div>';
+      return;
+    }
+    $('log').innerHTML = '<div class="row hd"><span>#</span><span>angle</span><span>speed</span><span>range</span></div>' +
+      launches.map((s,i) =>
+        '<div class="row"><span class="n">' + String(i+1).padStart(2,'0') + '</span>' +
+        '<span>' + s.angle + '°</span>' +
+        '<span>' + s.speed.toFixed(1) + ' m/s</span>' +
+        '<span class="g">' + s.range.toFixed(1) + ' m</span></div>'
+      ).reverse().join('');
+  }
+
+  btnLaunch.addEventListener('click', launch);
+  btnClear.addEventListener('click', () => { launches = []; render(); sync(); });
+  btnExport.addEventListener('click', () => {
+    const rows = [['launch','angle_deg','speed_ms','vx_ms','vy_ms','time_of_flight_s','max_height_m','range_m','impact_speed_ms']]
+      .concat(launches.map((s,i) => {
+        const vxx = s.speed*Math.cos(s.angle*D2R), vyy = s.speed*Math.sin(s.angle*D2R);
+        return [i+1, s.angle, s.speed.toFixed(2), vxx.toFixed(2), vyy.toFixed(2),
+                s.tof.toFixed(3), s.hmax.toFixed(3), s.range.toFixed(2), s.vimp.toFixed(2)];
+      }));
+    const blob = new Blob([rows.map(r=>r.join(',')).join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'projectilelab-launches.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  window.addEventListener('resize', () => { if(!flying) redraw(null); });
+  sync();
+})();
+</script>
+
+<script>
+/* =====================================================================
+   MAGNETISM LAB — force on a current-carrying wire, F = B I L sinθ
+   ===================================================================== */
+(function(){
+  "use strict";
+  const TAU = Math.PI*2, D2R = Math.PI/180;
+  const $ = id => document.getElementById('m_' + id);
+  const CYAN = '#5BC8D8', RED = '#E8442B';
+
+  const cv=$('cv'), Bin=$('B'), Iin=$('I'), Lin=$('L'), angIn=$('ang');
+  const btnRec=$('record'), btnClear=$('clear'), btnExport=$('export');
+  let B=0.5, I=2, L=0.1, ang=90, iv='I', points=[];
+
+  const RANGE = {B:[0,2], I:[0,10], L:[0,0.5], ang:[0,180]};
+  const UNIT  = {B:'T', I:'A', L:'m', ang:'°'};
+  const F = () => B*I*L*Math.sin(ang*D2R);
+  const Fof = (vB,vI,vL,va) => vB*vI*vL*Math.sin(va*D2R);
+
+  function sizeCanvas(c){ const dpr=window.devicePixelRatio||1; c.width=c.clientWidth*dpr; c.height=c.clientHeight*dpr;
+    const x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); return x; }
+  function arrow(x,x1,y1,x2,y2,col,w){
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy); x.strokeStyle=col; x.fillStyle=col; x.lineWidth=w;
+    x.beginPath(); x.moveTo(x1,y1); x.lineTo(x2,y2); x.stroke(); if(len<5) return;
+    const a=Math.atan2(dy,dx),h=7; x.beginPath(); x.moveTo(x2,y2);
+    x.lineTo(x2-h*Math.cos(a-0.4),y2-h*Math.sin(a-0.4)); x.lineTo(x2-h*Math.cos(a+0.4),y2-h*Math.sin(a+0.4));
+    x.closePath(); x.fill();
+  }
+
+  function drawStage(){
+    if(cv.clientWidth<40||cv.clientHeight<40) return;
+    const x=sizeCanvas(cv), W=cv.clientWidth, H=cv.clientHeight, cxp=W/2, cyp=H/2;
+    x.clearRect(0,0,W,H);
+
+    // uniform field B — rows of arrows pointing right
+    x.globalAlpha=.5;
+    for(let gy=cyp-90; gy<=cyp+90; gy+=36){
+      for(let gx=40; gx<W-60; gx+=70) arrow(x,gx,gy,gx+44,gy,CYAN,1.5);
+    }
+    x.globalAlpha=1;
+    x.fillStyle='rgba(91,200,216,.7)'; x.font='11px "IBM Plex Mono",monospace'; x.textAlign='left'; x.textBaseline='bottom';
+    x.fillText('B field →', 40, cyp-96);
+
+    // the wire at angle θ to the field, through the centre
+    const th=ang*D2R, half=Math.min(W,H)*0.33;
+    const wx=Math.cos(th), wy=-Math.sin(th);
+    const ax=cxp-half*wx, ay=cyp-half*wy, bx=cxp+half*wx, by=cyp+half*wy;
+    x.strokeStyle='#fff'; x.lineWidth=5; x.lineCap='round';
+    x.beginPath(); x.moveTo(ax,ay); x.lineTo(bx,by); x.stroke(); x.lineCap='butt';
+    // current arrowheads along the wire (red)
+    for(let s=-0.6;s<=0.6;s+=0.6){
+      const px=cxp+half*wx*s, py=cyp+half*wy*s;
+      arrow(x,px,py,px+22*wx,py+22*wy,RED,2.5);
+    }
+    x.fillStyle=RED; x.textAlign='center'; x.textBaseline='middle';
+    x.fillText('I', bx+14*wx, by+14*wy);
+
+    // angle marker between wire and field
+    x.strokeStyle='rgba(255,255,255,.5)'; x.lineWidth=1.25;
+    x.beginPath(); x.arc(cxp,cyp,30,0,-th,true); x.stroke();
+    x.fillStyle='rgba(255,255,255,.8)'; x.fillText('θ='+Math.round(ang)+'°', cxp+46, cyp-14);
+
+    // force out of the page ⊙ at the midpoint, sized by |F| relative to this config's max
+    const f=F(), fmaxCfg=Math.max(B*I*L,1e-6), r=6+38*Math.sqrt(Math.max(0,f)/fmaxCfg);
+    x.strokeStyle='#fff'; x.fillStyle='rgba(255,255,255,.12)'; x.lineWidth=2.5;
+    x.beginPath(); x.arc(cxp,cyp,r,0,TAU); x.fill(); x.stroke();
+    x.fillStyle='#fff'; x.beginPath(); x.arc(cxp,cyp,Math.min(4,r*0.3),0,TAU); x.fill();
+    x.textAlign='left'; x.textBaseline='middle';
+    x.fillText('F = '+f.toFixed(3)+' N  (out of page)', cxp+r+10, cyp);
+
+    $('FRead').innerHTML=f.toFixed(3)+'<small>N</small>';
+    $('formula').textContent=B.toFixed(2)+' × '+I.toFixed(1)+' × '+L.toFixed(2)+' × sin'+Math.round(ang)+'°';
+  }
+
+  /* ---------- graphs ---------- */
+  const PAD={l:40,r:10,t:10,b:20};
+  function plot(c, varName, markX){
+    if(c.clientWidth<40||c.clientHeight<40) return;
+    const x=sizeCanvas(c), W=c.clientWidth, H=c.clientHeight;
+    const x0=PAD.l,y0=H-PAD.b,w=W-PAD.l-PAD.r,h=H-PAD.t-PAD.b;
+    x.clearRect(0,0,W,H);
+    const [lo,hi]=RANGE[varName];
+    // current value of the three held constant, with varName swept
+    const val=t=>{ const v={B,I,L,ang}; v[varName]=t; return Fof(v.B,v.I,v.L,v.ang); };
+    let fMax=0; for(let i=0;i<=60;i++) fMax=Math.max(fMax,val(lo+(hi-lo)*i/60));
+    fMax=Math.max(fMax,1e-6)*1.1;
+    const PX=t=>x0+(t-lo)/(hi-lo)*w, PY=v=>y0-v/fMax*h;
+    // grid
+    x.font='9px "IBM Plex Mono",monospace'; x.fillStyle='#6E7681';
+    for(let i=0;i<=2;i++){ const v=fMax*i/2,y=Math.round(PY(v))+.5; x.strokeStyle='rgba(21,24,28,.14)';
+      x.beginPath(); x.moveTo(x0,y); x.lineTo(x0+w,y); x.stroke();
+      x.textAlign='right'; x.textBaseline='middle'; x.fillText(v.toFixed(v<1?2:1),x0-4,y); }
+    x.strokeStyle='rgba(21,24,28,.5)'; x.beginPath(); x.moveTo(x0+.5,PAD.t); x.lineTo(x0+.5,y0+.5); x.stroke();
+    x.textAlign='left'; x.textBaseline='top'; x.fillText('N',x0+2,PAD.t);
+    x.textAlign='right'; x.fillText(varName==='ang'?'θ':varName,x0+w,y0+4);
+    // curve
+    x.strokeStyle=RED; x.lineWidth=2; x.beginPath();
+    for(let i=0;i<=80;i++){ const t=lo+(hi-lo)*i/80; (i?x.lineTo:x.moveTo).call(x,PX(t),PY(val(t))); }
+    x.stroke();
+    // operating point
+    x.fillStyle='#123E6B'; x.beginPath(); x.arc(PX(markX),PY(val(markX)),3.6,0,TAU); x.fill();
+  }
+  function drawGraphs(){
+    $('g1name').textContent='F vs '+(iv==='ang'?'θ':iv);
+    plot($('g1'), iv, iv==='B'?B:iv==='I'?I:iv==='L'?L:ang);
+    plot($('g2'), 'ang', ang);
+    $('g1now').textContent=F().toFixed(3)+' N';
+    $('g2now').textContent='sinθ='+Math.sin(ang*D2R).toFixed(3);
+  }
+
+  function sync(){
+    B=Math.max(0,parseFloat(Bin.value)||0); I=Math.max(0,parseFloat(Iin.value)||0);
+    L=Math.max(0,parseFloat(Lin.value)||0); ang=Math.min(180,Math.max(0,parseFloat(angIn.value)||0));
+    $('angOut').textContent=Math.round(ang)+'°';
+    const f=F();
+    $('big').innerHTML=f.toFixed(3)+'<small>N</small>';
+    $('bil').textContent=(B*I*L).toFixed(3)+' N';
+    $('sin').textContent=Math.sin(ang*D2R).toFixed(3);
+    $('fmax').textContent=(B*I*L).toFixed(3)+' N';
+    drawStage(); drawGraphs();
+  }
+  [Bin,Iin,Lin,angIn].forEach(el=>el.addEventListener('input',sync));
+  $('ivsel').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    iv=b.dataset.v; $('ivsel').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); drawGraphs(); });
+
+  function render(){
+    const n=points.length; btnClear.disabled=btnExport.disabled=n===0;
+    if(!n){ $('log').innerHTML='<div class="empty">No points recorded. Record a few to build a set by hand.</div>'; return; }
+    $('log').innerHTML='<div class="row hd"><span>#</span><span>B·I·L·θ</span><span></span><span>F</span></div>'+
+      points.map((p,i)=>'<div class="row"><span class="n">'+String(i+1).padStart(2,'0')+'</span>'+
+        '<span>'+p.B.toFixed(2)+'T '+p.I.toFixed(1)+'A</span>'+
+        '<span>'+p.L.toFixed(2)+'m '+Math.round(p.ang)+'°</span>'+
+        '<span class="g">'+p.F.toFixed(3)+'</span></div>').reverse().join('');
+  }
+  btnRec.addEventListener('click',()=>{ points.push({B,I,L,ang,F:F()}); render(); });
+  btnClear.addEventListener('click',()=>{ points=[]; render(); });
+  btnExport.addEventListener('click',()=>{
+    const rows=[['point','B_T','I_A','L_m','angle_deg','F_N']].concat(points.map((p,i)=>
+      [i+1,p.B.toFixed(3),p.I.toFixed(2),p.L.toFixed(3),Math.round(p.ang),p.F.toFixed(4)]));
+    const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='magnetism-points.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  window.addEventListener('resize',()=>{ drawStage(); drawGraphs(); });
+  sync();
+})();
+</script>
+
+<script>
+/* =====================================================================
+   DATASET GENERATOR — realistic repeat-trial tables for any experiment
+   ===================================================================== */
+(function(){
+  "use strict";
+  const G=9.81, D2R=Math.PI/180;
+  const $ = id => document.getElementById('d_' + id);
+
+  // Each experiment: the measured quantity, its variables, and the true law.
+  const EXP = {
+    fall:{ label:'Free fall', dv:{sym:'t',name:'fall time',unit:'s',dp:2},
+      vars:{ h:{name:'drop height',unit:'m',def:1.0,min:0.4,max:2.0,dp:3,iv:true} },
+      f:v=>Math.sqrt(2*v.h/G), randMax:0.25, unit:'s',
+      note:'t = √(2h/g). Plot t² against h → straight line, gradient 2/g.' },
+    pend:{ label:'Pendulum', dv:{sym:'T',name:'period',unit:'s',dp:2},
+      vars:{ L:{name:'length',unit:'m',def:1.0,min:0.3,max:1.5,dp:3,iv:true} },
+      f:v=>2*Math.PI*Math.sqrt(v.L/G), randMax:0.25, unit:'s',
+      note:'T = 2π√(L/g). Plot T² against L → straight line, gradient 4π²/g.' },
+    proj:{ label:'Projectile', dv:{sym:'R',name:'range',unit:'m',dp:2},
+      vars:{ angle:{name:'launch angle',unit:'°',def:45,min:15,max:75,dp:0,iv:true},
+             speed:{name:'launch speed',unit:'m/s',def:20,min:5,max:40,dp:1} },
+      f:v=>v.speed*v.speed*Math.sin(2*v.angle*D2R)/G, randMax:5, unit:'m',
+      note:'R = v²·sin(2θ)/g on level ground. Range is greatest at θ = 45°.' },
+    mag:{ label:'Magnetism', dv:{sym:'F',name:'force',unit:'N',dp:3},
+      vars:{ I:{name:'current',unit:'A',def:2,min:0.5,max:6,dp:1,iv:true},
+             B:{name:'flux density',unit:'T',def:0.5,min:0.1,max:2,dp:2},
+             L:{name:'length',unit:'m',def:0.1,min:0.02,max:0.5,dp:3},
+             angle:{name:'angle θ',unit:'°',def:90,min:0,max:90,dp:0} },
+      f:v=>v.B*v.I*v.L*Math.sin(v.angle*D2R), randMax:0.05, unit:'N',
+      note:'F = BIL sinθ. With B, L, θ held fixed, F against I is a straight line through the origin.' }
+  };
+
+  let exp='fall', last=null;
+
+  function gauss(mu,s){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+    return mu+s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  const cfg = () => EXP[exp];
+  const ivSym = () => $('iv').value;
+  const sigma = () => (+$('rand').value)/100 * cfg().randMax;
+
+  function buildIVOptions(){
+    const c=cfg(), sel=$('iv');
+    sel.innerHTML=Object.entries(c.vars).map(([sym,v])=>
+      '<option value="'+sym+'"'+(v.iv?' selected':'')+'>'+v.name+' ('+sym+', '+v.unit+')</option>').join('');
+  }
+  function buildParams(){
+    const c=cfg(), host=$('params'), iVsym=ivSym();
+    const others=Object.entries(c.vars).filter(([s])=>s!==iVsym);
+    host.innerHTML = others.length ? others.map(([sym,v])=>
+      '<div class="field" style="margin:0"><label for="d_p_'+sym+'">'+v.name+' <span class="u">('+v.unit+')</span></label>'+
+      '<input type="number" id="d_p_'+sym+'" value="'+v.def+'" step="any"></div>').join('')
+      : '<div class="hint" style="margin:0">No other quantities — this experiment has a single variable.</div>';
+  }
+  function prefillRange(){
+    const v=cfg().vars[ivSym()]; $('min').value=v.min; $('max').value=v.max;
+  }
+  function refreshReadouts(){
+    const c=cfg();
+    $('randU').textContent='(± '+c.unit+', reliability)';
+    $('randOut').textContent='± '+sigma().toFixed(c.dv.dp)+' '+c.unit;
+    $('sysOut').textContent=((+$('sys').value)>=0?'+':'')+(+$('sys').value)+'%';
+    $('trialsOut').textContent=$('trials').value;
+  }
+
+  function switchExp(e){
+    exp=e; buildIVOptions(); buildParams(); prefillRange(); refreshReadouts();
+  }
+
+  $('exp').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    $('exp').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b)); switchExp(b.dataset.exp); });
+  $('iv').addEventListener('change',()=>{ buildParams(); prefillRange(); });
+  $('rand').addEventListener('input',refreshReadouts);
+  $('sys').addEventListener('input',refreshReadouts);
+  $('trials').addEventListener('input',refreshReadouts);
+
+  function linspace(a,b,n){ if(n<2) return [a]; const o=[]; for(let i=0;i<n;i++) o.push(a+(b-a)*i/(n-1)); return o; }
+
+  function generate(){
+    const c=cfg(), ivs=ivSym(), ivVar=c.vars[ivs];
+    const lo=parseFloat($('min').value), hi=parseFloat($('max').value);
+    const pts=Math.min(7,Math.max(3,parseInt($('pts').value)||5));
+    const k=Math.min(5,Math.max(3,parseInt($('trials').value)||5));
+    const sig=sigma(), sys=(+$('sys').value)/100, dp=c.dv.dp, doRound=$('round').checked;
+    if(!isFinite(lo)||!isFinite(hi)){ return; }
+
+    // fixed parameters from the param inputs
+    const fixed={}; Object.keys(c.vars).forEach(sym=>{ if(sym!==ivs){
+      const el=document.getElementById('d_p_'+sym); fixed[sym]=el?parseFloat(el.value):c.vars[sym].def; } });
+
+    const ivVals=linspace(lo,hi,pts).map(x=>+x.toFixed(ivVar.dp));
+    const rows=ivVals.map(xv=>{
+      const vals=Object.assign({},fixed,{[ivs]:xv});
+      const truth=c.f(vals)*(1+sys);                 // systematic error shifts every reading (validity)
+      const trials=[]; for(let j=0;j<k;j++){ let r=truth+gauss(0,sig); if(doRound) r=+r.toFixed(dp); trials.push(Math.max(0,r)); }
+      const mean=trials.reduce((a,b)=>a+b,0)/k;
+      const rng=Math.max(...trials)-Math.min(...trials);
+      return {xv, trials, mean, rng};
+    });
+    last={c, ivs, ivVar, sig, sys, k, dp, fixed, rows};
+    renderTable();
+    $('export').disabled=false;
+  }
+
+  function renderTable(){
+    const {c,ivVar,sig,sys,k,dp,fixed,rows}=last, out=$('out');
+    const fixedTxt=Object.entries(fixed).map(([s,v])=>s+' = '+v+' '+c.vars[s].unit).join(' · ') || 'single variable';
+    let html='<div class="datahead">'+
+      '<span class="title">'+c.label+' — '+c.dv.name+' vs '+ivVar.name+'</span></div>'+
+      '<div class="datahead"><span class="meta">held fixed: '+fixedTxt+'</span>'+
+      '<span class="meta">random uncertainty <b>± '+sig.toFixed(dp)+' '+c.unit+'</b></span>'+
+      '<span class="meta">systematic error <b>'+(sys>=0?'+':'')+(sys*100).toFixed(1)+'%</b></span></div>';
+
+    html+='<table class="dtable"><thead><tr><th class="iv">'+ivVar.name+'<br>'+ivVar.sym+' ('+ivVar.unit+')</th>';
+    for(let j=1;j<=k;j++) html+='<th>Trial '+j+'<br>'+c.dv.sym+' ('+c.dv.unit+')</th>';
+    html+='<th class="mean">mean<br>'+c.dv.sym+'</th><th>range</th></tr></thead><tbody>';
+    rows.forEach(r=>{
+      html+='<tr><td class="iv">'+r.xv.toFixed(ivVar.dp)+'</td>';
+      r.trials.forEach(t=>html+='<td>'+t.toFixed(dp)+'</td>');
+      html+='<td class="mean">'+r.mean.toFixed(dp+1)+'</td><td>'+r.rng.toFixed(dp)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    html+='<p class="datanote"><b>Relationship:</b> '+c.note+
+      '<br><b>Reliability</b> shows up as the spread across trials (the range column); <b>validity</b> is the systematic error, which shifts every reading the same way and cannot be averaged out.</p>';
+    out.innerHTML=html;
+  }
+
+  function csv(){
+    const {c,ivVar,k,dp,rows}=last;
+    const head=[ivVar.sym+'_'+ivVar.unit]; for(let j=1;j<=k;j++) head.push('trial'+j+'_'+c.dv.unit);
+    head.push('mean_'+c.dv.unit,'range_'+c.dv.unit);
+    const lines=[head].concat(rows.map(r=>[r.xv.toFixed(ivVar.dp),...r.trials.map(t=>t.toFixed(dp)),
+      r.mean.toFixed(dp+1),r.rng.toFixed(dp)]));
+    const blob=new Blob([lines.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=c.label.toLowerCase().replace(/ /g,'-')+'-dataset.csv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  $('gen').addEventListener('click',generate);
+  $('export').addEventListener('click',()=>{ if(last) csv(); });
+
+  switchExp('fall');
+})();
+</script>
+
+<script>
 /* ---------- experiment selector ---------- */
 (function(){
   const tabs = [...document.querySelectorAll('.tabs button')];
   const labs = [...document.querySelectorAll('.lab')];
+
+  const hashOf = {'lab-fall':'#freefall', 'lab-pend':'#pendulum', 'lab-proj':'#projectile',
+                  'lab-mag':'#magnetism', 'lab-data':'#data'};
+  const labOf  = {'#freefall':'lab-fall', '#pendulum':'lab-pend', '#projectile':'lab-proj',
+                  '#magnetism':'lab-mag', '#data':'lab-data'};
 
   function show(id, push){
     tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.lab === id));
@@ -1263,7 +2169,7 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     // the newly revealed lab has been sized at zero until now, so ask it to redraw
     window.dispatchEvent(new Event('resize'));
     // some browsers refuse history writes on file:// URLs; the tab still works without it
-    if(push) try{ history.replaceState(null, '', id === 'lab-pend' ? '#pendulum' : '#freefall'); }catch(e){}
+    if(push) try{ history.replaceState(null, '', hashOf[id] || '#freefall'); }catch(e){}
   }
 
   tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.lab, true)));
@@ -1271,11 +2177,12 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
     if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
     if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
       const cur = tabs.findIndex(t => t.getAttribute('aria-selected') === 'true');
-      show(tabs[(cur + 1) % tabs.length].dataset.lab, true);
+      const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1;
+      show(tabs[(cur + step) % tabs.length].dataset.lab, true);
     }
   });
 
-  show(location.hash === '#pendulum' ? 'lab-pend' : 'lab-fall', false);
+  show(labOf[location.hash] || 'lab-fall', false);
 })();
 </script>
 </body>
