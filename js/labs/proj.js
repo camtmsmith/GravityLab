@@ -1,6 +1,6 @@
 /* =====================================================================
    PROJECTILE LAB — ideal projectile motion, resolved into components.
-   Up to two projectiles (A and B) launched together at the same speed.
+   Up to two projectiles: B is complementary, at its own angle, or dropped from rest.
    ===================================================================== */
 (function(){
   "use strict";
@@ -12,12 +12,13 @@
   const cv=$('cv');
   const speedIn=$('speed'), heightIn=$('height');
   const angA=$('angle'), angANum=$('angleNum'), angB=$('angleB'), angBNum=$('angleBNum');
-  const twoChk=$('two'), compleChk=$('comple');
+  const twoChk=$('two');
   const compChk=$('comp'), resChk=$('res'), trailChk=$('trail'), strobeChk=$('strobe');
   const btnLaunch=$('launch'), btnClear=$('clear'), btnExport=$('export');
   const reduced = PL.reduced;
 
   let speed = 20, h0 = 0, rate = 0.5;
+  let bMode = 'comple';               // B: 'comple' (90° − θA), 'angle' (its own), 'drop' (released from rest)
   let flying = false, launches = [];
   let scale = 20, originX = 60, groundY = 300, velScale = 4;
 
@@ -28,17 +29,20 @@
   ];
   const active = () => twoChk.checked ? P : [P[0]];
 
-  /* ---------- the physics (all deterministic), per launch angle a ---------- */
-  const vx    = a => speed*Math.cos(a*D2R);
-  const vy0   = a => speed*Math.sin(a*D2R);
-  const tof   = a => { const u = vy0(a); return (u + Math.sqrt(u*u + 2*G*h0))/G; };
-  const xAt   = (a,t) => vx(a)*Math.min(t, tof(a));
-  const yAt   = (a,t) => { const tt = Math.min(t, tof(a)); return Math.max(0, h0 + vy0(a)*tt - 0.5*G*tt*tt); };
-  const vyAt  = (a,t) => vy0(a) - G*Math.min(t, tof(a));
-  const hmax  = a => h0 + vy0(a)*vy0(a)/(2*G);
-  const range = a => vx(a)*tof(a);
-  const vimp  = a => Math.hypot(vx(a), vyAt(a, tof(a)));
-  const Tall  = () => Math.max(0.001, ...active().map(p => tof(p.angle)));
+  /* ---------- the physics (all deterministic), per projectile p ---------- */
+  // B can be dropped from rest instead of launched: same height, zero launch speed
+  const dropped = p => p.key === 'B' && bMode === 'drop';
+  const spd   = p => dropped(p) ? 0 : speed;
+  const vx    = p => spd(p)*Math.cos(p.angle*D2R);
+  const vy0   = p => spd(p)*Math.sin(p.angle*D2R);
+  const tof   = p => { const u = vy0(p); return (u + Math.sqrt(u*u + 2*G*h0))/G; };
+  const xAt   = (p,t) => vx(p)*Math.min(t, tof(p));
+  const yAt   = (p,t) => { const tt = Math.min(t, tof(p)); return Math.max(0, h0 + vy0(p)*tt - 0.5*G*tt*tt); };
+  const vyAt  = (p,t) => vy0(p) - G*Math.min(t, tof(p));
+  const hmax  = p => h0 + vy0(p)*vy0(p)/(2*G);
+  const range = p => vx(p)*tof(p);
+  const vimp  = p => Math.hypot(vx(p), vyAt(p, tof(p)));
+  const Tall  = () => Math.max(0.001, ...active().map(p => tof(p)));
 
   /* ---------- the stage ---------- */
   function drawStage(t){               // t = seconds into flight, or null for the idle preview
@@ -46,8 +50,8 @@
     const x = sizeCanvas(cv), W = cv.clientWidth, H = cv.clientHeight;
     const padL = 54, padR = 20, padTop = 24, padBot = 40;
     const ps = active();
-    const xW = Math.max(1, ...ps.map(p => range(p.angle))) * 1.08;
-    const yW = Math.max(1, h0, ...ps.map(p => hmax(p.angle))) * 1.15;
+    const xW = Math.max(1, ...ps.map(p => range(p))) * 1.08;
+    const yW = Math.max(1, h0, ...ps.map(p => hmax(p))) * 1.15;
     scale = Math.min((W-padL-padR)/xW, (H-padTop-padBot)/yW);
     originX = padL; groundY = H - padBot;
     velScale = 95/Math.max(speed,1);
@@ -80,12 +84,12 @@
     }
 
     ps.forEach(p => {
-      const a = p.angle, T = Math.max(tof(a), 0.001);
+      const T = Math.max(tof(p), 0.001);
       // predicted path, faint
       x.strokeStyle = p.key === 'A' ? 'rgba(255,255,255,.28)' : 'rgba(242,177,52,.35)';
       x.setLineDash([4,4]); x.lineWidth = 1.25;
       x.beginPath();
-      for(let i = 0; i <= 120; i++){ const tt = T*i/120; (i?x.lineTo:x.moveTo).call(x, PX(xAt(a,tt)), PY(yAt(a,tt))); }
+      for(let i = 0; i <= 120; i++){ const tt = T*i/120; (i?x.lineTo:x.moveTo).call(x, PX(xAt(p,tt)), PY(yAt(p,tt))); }
       x.stroke(); x.setLineDash([]);
       // flown trail
       if(trailChk.checked && p.trail.length > 1){
@@ -97,7 +101,7 @@
         const end = Math.min(T, t == null ? T : t);
         x.strokeStyle = p.key === 'A' ? 'rgba(255,255,255,.5)' : 'rgba(242,177,52,.65)';
         for(let s = 0.2; s <= end + 1e-6; s += 0.2){
-          x.beginPath(); x.arc(PX(xAt(a,s)), PY(yAt(a,s)), 3, 0, TAU); x.stroke();
+          x.beginPath(); x.arc(PX(xAt(p,s)), PY(yAt(p,s)), 3, 0, TAU); x.stroke();
         }
       }
     });
@@ -105,9 +109,9 @@
     // each ball and its vectors — at the current instant, or at the launch point when idle
     const tt = t == null ? 0 : t;
     ps.forEach(p => {
-      const a = p.angle, landed = tt >= tof(a) && t != null;
-      const bx = PX(xAt(a,tt)), by = PY(yAt(a,tt));
-      const vxv = vx(a), vyv = vyAt(a,tt);
+      const landed = tt >= tof(p) && t != null;
+      const bx = PX(xAt(p,tt)), by = PY(yAt(p,tt));
+      const vxv = vx(p), vyv = vyAt(p,tt);
 
       if(!landed && (compChk.checked || resChk.checked)){
         const cxEnd = bx + vxv*velScale, cyEnd = by - vyv*velScale;
@@ -135,10 +139,9 @@
     // live readouts
     $('tRead').innerHTML = Math.min(tt, Tall()).toFixed(2) + '<small>s</small>';
     ps.forEach(p => {
-      const a = p.angle;
-      $('read' + p.key).textContent = p.key + ' ' + Math.round(a*10)/10 + '°  v ' +
-        Math.hypot(vx(a), vyAt(a,tt)).toFixed(1) + ' m/s · x ' + xAt(a,tt).toFixed(1) +
-        ' · y ' + yAt(a,tt).toFixed(1) + ' m';
+      $('read' + p.key).textContent = p.key + ' ' + angLabel(p) + '  v ' +
+        Math.hypot(vx(p), vyAt(p,tt)).toFixed(1) + ' m/s · x ' + xAt(p,tt).toFixed(1) +
+        ' · y ' + yAt(p,tt).toFixed(1) + ' m';
     });
   }
 
@@ -189,70 +192,78 @@
   function drawVel(tau){
     const f = frame($('gVel')); if(!f) return;
     const ps = active(), T = Tall();
-    const mag = Math.max(1, ...ps.map(p => Math.max(vx(p.angle), vy0(p.angle), Math.abs(vyAt(p.angle, tof(p.angle))))));
+    const mag = Math.max(1, ...ps.map(p => Math.max(vx(p), vy0(p), Math.abs(vyAt(p, tof(p))))));
     const yMin = -Math.ceil(mag/5)*5, yMax = Math.ceil(mag/5)*5;
     gridY(f, yMin, yMax, 'm/s', T);
     const tt = tau == null ? 0 : tau;
     ps.forEach(p => {
-      const a = p.angle, B = p.key === 'B', Te = Math.max(tof(a), 0.001);
-      series(f, T, Te, tau, () => vx(a),     yMin, yMax, CYAN, B);   // horizontal: flat
-      series(f, T, Te, tau, t => vyAt(a,t),  yMin, yMax, RED,  B);   // vertical: slopes by -g
+      const B = p.key === 'B', Te = Math.max(tof(p), 0.001);
+      series(f, T, Te, tau, () => vx(p),     yMin, yMax, CYAN, B);   // horizontal: flat
+      series(f, T, Te, tau, t => vyAt(p,t),  yMin, yMax, RED,  B);   // vertical: slopes by -g
     });
-    $('nVel').innerHTML = ps.map(p => p.key + ' <span style="color:'+CYAN+'">vₓ '+vx(p.angle).toFixed(1)+
-      '</span> <span style="color:'+RED+'">v_y '+vyAt(p.angle,tt).toFixed(1)+'</span>').join(' · ');
+    $('nVel').innerHTML = ps.map(p => p.key + ' <span style="color:'+CYAN+'">vₓ '+vx(p).toFixed(1)+
+      '</span> <span style="color:'+RED+'">v_y '+vyAt(p,tt).toFixed(1)+'</span>').join(' · ');
   }
   function drawPos(tau){
     const f = frame($('gPos')); if(!f) return;
     const ps = active(), T = Tall();
-    const yMax = Math.max(1, ...ps.map(p => Math.max(range(p.angle), hmax(p.angle))))*1.1;
+    const yMax = Math.max(1, ...ps.map(p => Math.max(range(p), hmax(p))))*1.1;
     gridY(f, 0, yMax, 'm', T);
     const tt = tau == null ? 0 : tau;
     ps.forEach(p => {
-      const a = p.angle, B = p.key === 'B', Te = Math.max(tof(a), 0.001);
-      series(f, T, Te, tau, t => xAt(a,t), 0, yMax, CYAN, B);      // horizontal distance: straight
-      series(f, T, Te, tau, t => yAt(a,t), 0, yMax, RED,  B);      // height: parabola
+      const B = p.key === 'B', Te = Math.max(tof(p), 0.001);
+      series(f, T, Te, tau, t => xAt(p,t), 0, yMax, CYAN, B);      // horizontal distance: straight
+      series(f, T, Te, tau, t => yAt(p,t), 0, yMax, RED,  B);      // height: parabola
     });
-    $('nPos').innerHTML = ps.map(p => p.key + ' <span style="color:'+CYAN+'">x '+xAt(p.angle,tt).toFixed(1)+
-      '</span> <span style="color:'+RED+'">y '+yAt(p.angle,tt).toFixed(1)+'</span>').join(' · ');
+    $('nPos').innerHTML = ps.map(p => p.key + ' <span style="color:'+CYAN+'">x '+xAt(p,tt).toFixed(1)+
+      '</span> <span style="color:'+RED+'">y '+yAt(p,tt).toFixed(1)+'</span>').join(' · ');
   }
 
-  function redraw(t){ drawStage(t); drawVel(t); drawPos(t); }
+  let shownT = null;                  // the instant on screen, kept so a resize or toggle does not rewind
+  function redraw(t){ shownT = t; drawStage(t); drawVel(t); drawPos(t); }
 
   /* ---------- keeping the panel in step with the inputs ---------- */
   const clampAng = v => Math.min(90, Math.max(0, v));
   const fmtAng = a => (Math.round(a*10)/10) + '°';
-  const complementary = () => twoChk.checked && Math.abs(P[0].angle + P[1].angle - 90) < 1e-6;
+  const angLabel = p => dropped(p) ? 'dropped' : fmtAng(p.angle);
 
   function statsTable(){
     const ps = active();
     const rows = [
-      ['Angle θ',              a => fmtAng(a)],
-      ['Horizontal vₓ = v cosθ', a => vx(a).toFixed(2) + ' m/s'],
-      ['Vertical v_y = v sinθ',  a => vy0(a).toFixed(2) + ' m/s'],
-      ['Time of flight',       a => tof(a).toFixed(2) + ' s'],
-      ['Maximum height',       a => hmax(a).toFixed(2) + ' m'],
-      ['Range',                a => range(a).toFixed(2) + ' m'],
-      ['Impact speed',         a => vimp(a).toFixed(2) + ' m/s']
+      ['Angle θ',              p => angLabel(p)],
+      ['Launch speed',         p => spd(p).toFixed(1) + ' m/s'],
+      ['Horizontal vₓ = v cosθ', p => vx(p).toFixed(2) + ' m/s'],
+      ['Vertical v_y = v sinθ',  p => vy0(p).toFixed(2) + ' m/s'],
+      ['Time of flight',       p => tof(p).toFixed(2) + ' s'],
+      ['Maximum height',       p => hmax(p).toFixed(2) + ' m'],
+      ['Range',                p => range(p).toFixed(2) + ' m'],
+      ['Impact speed',         p => vimp(p).toFixed(2) + ' m/s']
     ];
     const el = $('stats');
     el.className = 'stats' + (ps.length > 1 ? ' three' : '');
     el.innerHTML = (ps.length > 1 ? '<dt></dt><dd class="ha">A</dd><dd class="hb">B</dd>' : '') +
-      rows.map(([lbl, fn]) => '<dt>' + lbl + '</dt>' + ps.map(p => '<dd>' + fn(p.angle) + '</dd>').join('')).join('');
+      rows.map(([lbl, fn]) => '<dt>' + lbl + '</dt>' + ps.map(p => '<dd>' + fn(p) + '</dd>').join('')).join('');
   }
 
   function rangeCard(s){                 // s = a recorded launch, or null for the prediction
     const ps = active();
-    const rA = s ? s.A.range : range(P[0].angle);
+    const rA = s ? s.A.range : range(P[0]);
     $('range').innerHTML = rA.toFixed(1) + '<small>m range' + (ps.length > 1 ? ' · A' : '') + '</small>';
     const bOn = s ? !!s.B : ps.length > 1;
     $('rangeB').hidden = !bOn;
-    if(bOn) $('rangeB').innerHTML = (s ? s.B.range : range(P[1].angle)).toFixed(1) + '<small>m range · B</small>';
+    if(bOn) $('rangeB').innerHTML = (s ? s.B.range : range(P[1])).toFixed(1) + '<small>m range · B</small>';
 
     let note;
     if(!s) note = 'Predicted — launch to watch it resolve into components.';
     else{
-      note = 'At ' + fmtAng(s.A.angle) + (s.B ? ' and ' + fmtAng(s.B.angle) : '') + ' from ' + s.speed.toFixed(1) + ' m/s';
-      if(s.B && Math.abs(s.A.angle + s.B.angle - 90) < 1e-6){
+      note = 'At ' + fmtAng(s.A.angle) + (s.B && !s.B.dropped ? ' and ' + fmtAng(s.B.angle) : '') + ' from ' + s.speed.toFixed(1) + ' m/s';
+      if(s.B && s.B.dropped){
+        note += ', B dropped from ' + s.h0 + ' m';
+        if(s.h0 === 0) note += ' · raise the launch height so B has somewhere to fall';
+        else if(Math.abs(s.A.tof - s.B.tof) < 1e-9)
+          note += ' · <b>both land together after ' + s.A.tof.toFixed(2) + ' s</b> — horizontal motion does not change the vertical fall';
+        else note += ' · A lands at ' + s.A.tof.toFixed(2) + ' s, B at ' + s.B.tof.toFixed(2) + ' s — set θA = 0° for a horizontal launch';
+      }else if(s.B && Math.abs(s.A.angle + s.B.angle - 90) < 1e-6){
         note += s.h0 === 0
           ? ' · <b>complementary angles give equal range on level ground</b> (sin 2θ = sin(180° − 2θ))'
           : ' · launched from ' + s.h0 + ' m up, so complementary angles no longer land together';
@@ -268,12 +279,14 @@
     if(src === 'A'){ P[0].angle = +angA.value; angANum.value = P[0].angle; }
     if(src === 'Bnum'){ const v = parseFloat(angBNum.value); if(isFinite(v)){ P[1].angle = clampAng(v); angB.value = P[1].angle; } }
     if(src === 'B'){ P[1].angle = +angB.value; angBNum.value = P[1].angle; }
-    if(compleChk.checked){
+    if(bMode === 'comple'){
       P[1].angle = Math.round((90 - P[0].angle)*1000)/1000;
       angB.value = P[1].angle; angBNum.value = P[1].angle;
     }
-    angB.disabled = angBNum.disabled = compleChk.checked || !twoChk.checked;
-    compleChk.disabled = !twoChk.checked;
+    angB.disabled = angBNum.disabled = bMode !== 'angle' || !twoChk.checked;
+    $('bang').hidden = bMode === 'drop';
+    $('bhint').textContent = {comple:'Complementary angle, same speed.', angle:'Its own angle, same speed.',
+      drop:'Released from rest at the launch height, at the same moment A is fired.'}[bMode];
     $('bwrap').hidden = !twoChk.checked;
     $('legB').hidden = $('readB').hidden = !twoChk.checked;
   }
@@ -297,8 +310,15 @@
     el.value = Math.round(P[el === angANum ? 0 : 1].angle*1000)/1000;
   }));
   twoChk.addEventListener('change', () => { if(!flying) sync(); });
-  compleChk.addEventListener('change', () => { if(!flying) sync(); });
-  [compChk,resChk,trailChk,strobeChk].forEach(c => c.addEventListener('change', () => { if(!flying) redraw(null); }));
+  segmented($('bmode'), d => {
+    bMode = d.mode;
+    if(bMode === 'drop'){                  // the classic demo: fire A horizontally, drop B, same height
+      P[0].angle = 0; angA.value = 0; angANum.value = 0;
+      if(!(parseFloat(heightIn.value) > 0)) heightIn.value = 10;
+    }
+    sync();
+  }, () => flying);
+  [compChk,resChk,trailChk,strobeChk].forEach(c => c.addEventListener('change', () => { if(!flying) redraw(shownT); }));
   segmented($('speedsel'), d => rate = parseFloat(d.rate), () => flying);
 
   /* ---------- a launch ---------- */
@@ -306,14 +326,14 @@
     if(flying) return;
     sync();
     const ps = active(), T = Tall();
-    const snapOf = p => ({angle: p.angle, range: range(p.angle), tof: tof(p.angle),
-                          hmax: hmax(p.angle), vimp: vimp(p.angle)});
+    const snapOf = p => ({angle: p.angle, dropped: dropped(p), speed: spd(p), range: range(p), tof: tof(p),
+                          hmax: hmax(p), vimp: vimp(p)});
     const snap = {speed: speed, h0: h0, A: snapOf(P[0]), B: ps.length > 1 ? snapOf(P[1]) : null};
     flying = true; P.forEach(p => p.trail = []);
     btnLaunch.disabled = true;
-    [twoChk, compleChk, angA, angANum, angB, angBNum].forEach(el => el.disabled = true);
+    [twoChk, angA, angANum, angB, angBNum].forEach(el => el.disabled = true);
 
-    const pushTrail = tau => ps.forEach(p => p.trail.push({x: xAt(p.angle, tau), y: yAt(p.angle, tau)}));
+    const pushTrail = tau => ps.forEach(p => p.trail.push({x: xAt(p, tau), y: yAt(p, tau)}));
     const finish = () => {
       flying = false; btnLaunch.disabled = false;
       twoChk.disabled = angA.disabled = angANum.disabled = false;
@@ -347,8 +367,8 @@
     }
     const row = (i, key, s, p) =>
       '<div class="row"><span class="n">' + pad2(i+1) + (s.B ? key : '') + '</span>' +
-      '<span>' + fmtAng(p.angle) + '</span>' +
-      '<span>' + s.speed.toFixed(1) + ' m/s</span>' +
+      '<span>' + (p.dropped ? 'drop' : fmtAng(p.angle)) + '</span>' +
+      '<span>' + p.speed.toFixed(1) + ' m/s</span>' +
       '<span class="g">' + p.range.toFixed(1) + ' m</span></div>';
     $('log').innerHTML = '<div class="row hd"><span>#</span><span>angle</span><span>speed</span><span>range</span></div>' +
       launches.map((s,i) => (s.B ? row(i,'B',s,s.B) : '') + row(i,'A',s,s.A)).reverse().join('');
@@ -360,13 +380,13 @@
     const rows = [['launch','projectile','angle_deg','speed_ms','launch_height_m','vx_ms','vy_ms','time_of_flight_s','max_height_m','range_m','impact_speed_ms']];
     launches.forEach((s,i) => [['A',s.A],['B',s.B]].forEach(([k,p]) => {
       if(!p) return;
-      const vxx = s.speed*Math.cos(p.angle*D2R), vyy = s.speed*Math.sin(p.angle*D2R);
-      rows.push([i+1, k, p.angle, s.speed.toFixed(2), s.h0, vxx.toFixed(2), vyy.toFixed(2),
+      const vxx = p.speed*Math.cos(p.angle*D2R), vyy = p.speed*Math.sin(p.angle*D2R);
+      rows.push([i+1, k, p.dropped ? 'dropped' : p.angle, p.speed.toFixed(2), s.h0, vxx.toFixed(2), vyy.toFixed(2),
                  p.tof.toFixed(3), p.hmax.toFixed(3), p.range.toFixed(2), p.vimp.toFixed(2)]);
     }));
     downloadCSV('projectile-launches.csv', rows);
   });
 
-  window.addEventListener('resize', () => { if(!flying) redraw(null); });
+  window.addEventListener('resize', () => { if(!flying) redraw(shownT); });
   sync();
 })();

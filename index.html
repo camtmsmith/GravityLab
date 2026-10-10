@@ -306,7 +306,13 @@
     </div>
     <div class="subfield" id="j_bwrap">
       <div class="field">
-        <label class="check"><input type="checkbox" id="j_comple" checked> <span>Complementary (θ<sub>B</sub> = 90° − θ<sub>A</sub>)</span></label>
+        <label>Projectile B is</label>
+        <div class="seg" id="j_bmode">
+          <button data-mode="comple" aria-pressed="true">90° − θ<sub>A</sub></button>
+          <button data-mode="angle" aria-pressed="false">Own angle</button>
+          <button data-mode="drop" aria-pressed="false">Dropped</button>
+        </div>
+        <p class="hint" id="j_bhint" style="margin:6px 0 0">Complementary angle, same speed.</p>
       </div>
       <div class="field" id="j_bang" style="margin-bottom:0">
         <label for="j_angleBNum">Angle θ<sub>B</sub> <span class="u">(degrees)</span></label>
@@ -366,7 +372,7 @@
         <span id="j_legB" style="color:#F2B134"><i></i>projectile B (dashed on graphs)</span>
       </div>
     </div>
-    <p class="hint">Pick a preset angle on the slider or type any angle in the box. With B on, both launch together at the same speed — complementary angles (e.g. 30° and 60°) land at the same spot on level ground.</p>
+    <p class="hint">Pick a preset angle on the slider or type any angle in the box. With B on, both launch together at the same speed — complementary angles (e.g. 30° and 60°) land at the same spot on level ground. Set B to <b>Dropped</b> to fire A horizontally while B falls from rest — they land together.</p>
 
     <div class="graphs">
       <figure class="graph">
