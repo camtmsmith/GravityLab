@@ -88,11 +88,17 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 .speed button:last-child,.seg button:last-child{border-right:none}
 .speed button[aria-pressed=true],.seg button[aria-pressed=true]{background:var(--graphite);color:var(--paper)}
 
+.sel{width:100%;padding:9px 10px;border:1.5px solid var(--graphite);background:#fff;border-radius:0;
+  font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--graphite)}
 .angrow{display:flex;align-items:center;gap:8px}
 .angrow input[type=range]{flex:1}
 input.angbox{width:74px;padding:5px 6px;font-size:14px;text-align:right}
 .angticks{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9px;
   color:var(--muted);margin:1px 84px 0 2px}
+/* error controls, shown only when "Add measurement error" is ticked */
+.errbox{border-left:3px solid var(--signal);padding-left:10px;margin-bottom:16px}
+.errbox[hidden]{display:none}
+
 #lab-proj .vlegend{top:16px;bottom:auto}
 .subfield{border-left:3px solid #F2B134;padding-left:10px;margin-bottom:16px}
 .subfield .off{opacity:.45}
@@ -156,7 +162,7 @@ dl.stats .hb{color:#B07A0C}
 #lab-fall .graphs{grid-template-columns:repeat(3,1fr)}
 #lab-pend .graphs{grid-template-columns:1fr 1fr}
 #lab-proj .graphs{grid-template-columns:1fr 1fr}
-#lab-mag .graphs,#lab-field .graphs{grid-template-columns:1fr 1fr}
+#lab-mag .graphs,#lab-field .graphs,#lab-snell .graphs{grid-template-columns:1fr 1fr}
 .graph{margin:0;border:1.5px solid var(--graphite);background:var(--paper-2);padding:10px 10px 6px}
 .graph .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:8px}
 .graph .name{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
@@ -166,7 +172,7 @@ dl.stats .hb{color:#B07A0C}
 #lab-fall .graph canvas{height:104px}
 #lab-pend .graph canvas{height:150px}
 #lab-proj .graph canvas{height:150px}
-#lab-mag .graph canvas,#lab-field .graph canvas{height:150px}
+#lab-mag .graph canvas,#lab-field .graph canvas,#lab-snell .graph canvas{height:150px}
 
 /* ---------- results ---------- */
 .gcard{border:1.5px solid var(--graphite);padding:14px;margin-bottom:14px;background:var(--paper-2)}
@@ -183,14 +189,14 @@ dl.stats dd{margin:0;font-family:'IBM Plex Mono',monospace;font-weight:500;text-
 #lab-fall .log .row{grid-template-columns:auto 1fr auto}
 #lab-pend .log .row{grid-template-columns:auto 1fr auto auto}
 #lab-proj .log .row{grid-template-columns:auto auto 1fr auto}
-#lab-mag .log .row,#lab-field .log .row{grid-template-columns:auto 1fr 1fr auto}
+#lab-mag .log .row,#lab-field .log .row,#lab-snell .log .row{grid-template-columns:auto 1fr 1fr auto}
 .log .n{color:var(--muted)}
 .log .g{color:var(--signal)}
 .log .hd{color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
   border-bottom:1.5px solid rgba(21,24,28,.3)}
 .empty{padding:16px 2px;color:var(--muted);font-size:13px;font-family:'IBM Plex Sans',sans-serif}
 
-@media (max-width:1200px){#lab-fall .graphs,#lab-pend .graphs,#lab-proj .graphs,#lab-mag .graphs,#lab-field .graphs{grid-template-columns:1fr}
+@media (max-width:1200px){#lab-fall .graphs,#lab-pend .graphs,#lab-proj .graphs,#lab-mag .graphs,#lab-field .graphs,#lab-snell .graphs{grid-template-columns:1fr}
   #lab-fall .graph canvas{height:88px}}
 @media (max-width:900px){
   .lab{grid-template-columns:minmax(0,1fr)}

@@ -83,9 +83,19 @@ window.PL = (function(){
     });
   }
 
-  const signed = (v, dp) => (v >= 0 ? '+' : '') + v.toFixed(dp);
+  // "Add measurement error" switch: off = exact theory, on = reveal the error controls.
+  // Returns a function telling the lab whether errors are currently on.
+  function errorToggle(chk, box, onChange){
+    const apply = () => { box.hidden = !chk.checked; };
+    chk.addEventListener('change', () => { apply(); if(onChange) onChange(); });
+    apply();
+    return () => chk.checked;
+  }
+
+  // +1.2 / −0.4, and never "-0.0" from a rounding remainder
+  const signed = (v, dp) => { const r = Number(v.toFixed(dp)) || 0; return (r >= 0 ? '+' : '') + r.toFixed(dp); };
   const pad2 = i => String(i).padStart(2,'0');
 
   return {TAU, COLORS, reduced, byPrefix, sizeCanvas, hidden, gauss, fitLine, niceStep,
-          arrow, downloadCSV, segmented, signed, pad2};
+          arrow, downloadCSV, segmented, errorToggle, signed, pad2};
 })();

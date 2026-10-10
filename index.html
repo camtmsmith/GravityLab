@@ -39,34 +39,42 @@
       <input type="number" id="height" value="1.250" min="0.05" max="4.50" step="0.001">
     </div>
 
+    <div class="eyebrow" style="margin-top:22px">Measurement error</div>
+
     <div class="field">
-      <label for="unc">Height uncertainty <span class="u">(± m)</span></label>
-      <input type="number" id="unc" value="0.005" min="0" max="0.5" step="0.001">
+      <label class="check"><input type="checkbox" id="err"> Add measurement error</label>
+      <p class="hint" style="margin:6px 0 0">Off: the watch shows the exact fall time, so g comes out at 9.81 m/s².</p>
     </div>
 
-    <div class="eyebrow" style="margin-top:22px">Human timing</div>
-
-    <div class="field">
-      <div class="rowval">
-        <label for="react">Reaction spread <span class="u">(each press)</span></label>
-        <span class="v mono" id="reactOut">0.06 s</span>
+    <div class="errbox" id="errctl" hidden>
+      <div class="field">
+        <label for="unc">Height uncertainty <span class="u">(± m)</span></label>
+        <input type="number" id="unc" value="0.005" min="0" max="0.5" step="0.001">
       </div>
-      <input type="range" id="react" min="0" max="0.20" step="0.005" value="0.06">
-    </div>
 
-    <div class="field">
-      <div class="rowval">
-        <label for="bias">Systematic bias <span class="u">(late stop +)</span></label>
-        <span class="v mono" id="biasOut">0.00 s</span>
+      <div class="field">
+        <div class="rowval">
+          <label for="react">Reaction spread <span class="u">(each press)</span></label>
+          <span class="v mono" id="reactOut">0.06 s</span>
+        </div>
+        <input type="range" id="react" min="0" max="0.20" step="0.005" value="0.06">
       </div>
-      <input type="range" id="bias" min="-0.20" max="0.20" step="0.005" value="0">
-    </div>
 
-    <div class="field">
-      <label class="check">
-        <input type="checkbox" id="res" checked>
-        Stopwatch reads to 0.01 s
-      </label>
+      <div class="field">
+        <div class="rowval">
+          <label for="bias">Systematic bias <span class="u">(late stop +)</span></label>
+          <span class="v mono" id="biasOut">0.00 s</span>
+        </div>
+        <input type="range" id="bias" min="-0.20" max="0.20" step="0.005" value="0">
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="res" checked>
+          Stopwatch reads to 0.01 s
+        </label>
+      </div>
+
     </div>
 
     <div class="field">
@@ -165,11 +173,6 @@
     </div>
 
     <div class="field">
-      <label for="p_unc">Length uncertainty <span class="u">(± m)</span></label>
-      <input type="number" id="p_unc" value="0.003" min="0" max="0.2" step="0.001">
-    </div>
-
-    <div class="field">
       <div class="rowval">
         <label for="p_amp">Amplitude</label>
         <span class="v mono" id="p_ampOut">10°</span>
@@ -187,26 +190,39 @@
       </div>
     </div>
 
-    <div class="eyebrow" style="margin-top:22px">Human timing</div>
+    <div class="eyebrow" style="margin-top:22px">Measurement error</div>
 
     <div class="field">
-      <div class="rowval">
-        <label for="p_react">Reaction spread <span class="u">(each press)</span></label>
-        <span class="v mono" id="p_reactOut">0.060 s</span>
-      </div>
-      <input type="range" id="p_react" min="0" max="0.20" step="0.005" value="0.06">
+      <label class="check"><input type="checkbox" id="p_err"> Add measurement error</label>
+      <p class="hint" style="margin:6px 0 0">Off: exact small-angle period T = 2π√(L/g), so g comes out at 9.81 m/s². On adds timing and length errors and the large-amplitude effect.</p>
     </div>
 
-    <div class="field">
-      <div class="rowval">
-        <label for="p_bias">Systematic bias <span class="u">(late stop +)</span></label>
-        <span class="v mono" id="p_biasOut">+0.000 s</span>
+    <div class="errbox" id="p_errctl" hidden>
+      <div class="field">
+        <label for="p_unc">Length uncertainty <span class="u">(± m)</span></label>
+        <input type="number" id="p_unc" value="0.003" min="0" max="0.2" step="0.001">
       </div>
-      <input type="range" id="p_bias" min="-0.20" max="0.20" step="0.005" value="0">
-    </div>
 
-    <div class="field">
-      <label class="check"><input type="checkbox" id="p_res" checked> Stopwatch reads to 0.01 s</label>
+      <div class="field">
+        <div class="rowval">
+          <label for="p_react">Reaction spread <span class="u">(each press)</span></label>
+          <span class="v mono" id="p_reactOut">0.060 s</span>
+        </div>
+        <input type="range" id="p_react" min="0" max="0.20" step="0.005" value="0.06">
+      </div>
+
+      <div class="field">
+        <div class="rowval">
+          <label for="p_bias">Systematic bias <span class="u">(late stop +)</span></label>
+          <span class="v mono" id="p_biasOut">+0.000 s</span>
+        </div>
+        <input type="range" id="p_bias" min="-0.20" max="0.20" step="0.005" value="0">
+      </div>
+
+      <div class="field">
+        <label class="check"><input type="checkbox" id="p_res" checked> Stopwatch reads to 0.01 s</label>
+      </div>
+
     </div>
 
     <div class="field">
@@ -272,6 +288,122 @@
 
     <div class="log" id="p_log">
       <div class="empty">No runs yet. Time a run to start recording.</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="lab" id="lab-snell" hidden>
+
+  <section class="panel">
+    <div class="eyebrow">Materials</div>
+
+    <div class="field">
+      <label for="s_m1">Medium 1 <span class="u">(incident ray)</span></label>
+      <select id="s_m1" class="sel"></select>
+    </div>
+    <div class="field">
+      <label for="s_m2">Medium 2 <span class="u">(refracted ray)</span></label>
+      <select id="s_m2" class="sel"></select>
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Ray box</div>
+
+    <div class="field">
+      <label for="s_angNum">Angle of incidence θ₁ <span class="u">(from the normal)</span></label>
+      <div class="angrow">
+        <input type="range" id="s_ang" min="0" max="80" step="10" value="30" aria-label="Incident angle preset">
+        <input type="number" class="angbox" id="s_angNum" value="30" min="0" max="89" step="any">
+      </div>
+      <div class="angticks"><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span></div>
+    </div>
+
+    <div class="field">
+      <label class="check"><input type="checkbox" id="s_refl" checked> Show the partial reflection</label>
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Measurement error</div>
+
+    <div class="field">
+      <label class="check"><input type="checkbox" id="s_err"> Add measurement error</label>
+      <p class="hint" style="margin:6px 0 0">Off: θ₂ is read exactly from Snell’s law. On adds protractor reading error and a misdrawn normal.</p>
+    </div>
+
+    <div class="errbox" id="s_errctl" hidden>
+      <div class="field">
+        <div class="rowval">
+          <label for="s_spread">Protractor reading spread <span class="u">(±)</span></label>
+          <span class="v mono" id="s_spreadOut">1.0°</span>
+        </div>
+        <input type="range" id="s_spread" min="0" max="5" step="0.5" value="1">
+      </div>
+      <div class="field">
+        <div class="rowval">
+          <label for="s_tilt">Normal misdrawn by <span class="u">(systematic)</span></label>
+          <span class="v mono" id="s_tiltOut">+0.0°</span>
+        </div>
+        <input type="range" id="s_tilt" min="-5" max="5" step="0.5" value="0">
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="s_round" checked> Read to the nearest 1°</label>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="s_record">Record θ₂</button>
+      <button id="s_sweep">Record 10° → 70°</button>
+      <button id="s_clear" disabled>Clear results</button>
+      <button id="s_export" disabled>Export CSV</button>
+    </div>
+  </section>
+
+  <section class="stage-wrap">
+    <div class="stage" id="s_stage">
+      <canvas id="s_cv"></canvas>
+      <div class="readout">
+        <div class="lbl">Angle of refraction</div>
+        <div class="t mono" id="s_read">19.6<small>°</small></div>
+        <div class="h mono" id="s_sub">n₁ sinθ₁ = n₂ sinθ₂</div>
+      </div>
+      <div class="vlegend">
+        <span style="color:#F2B134"><i></i>incident ray</span>
+        <span style="color:#E8442B"><i></i>refracted ray</span>
+        <span style="color:#fff"><i></i>normal</span>
+      </div>
+    </div>
+    <p class="hint">Drag in the top half to aim the ray box, or pick a preset angle. Going from a denser to a less dense material, push past the critical angle to see total internal reflection.</p>
+
+    <div class="graphs">
+      <figure class="graph">
+        <div class="head"><span class="name">θ₂ vs θ₁</span><span class="now mono" id="s_g1now">—</span></div>
+        <canvas id="s_g1"></canvas>
+      </figure>
+      <figure class="graph">
+        <div class="head"><span class="name">sin θ₁ vs sin θ₂</span><span class="now mono" id="s_g2now">record to fit</span></div>
+        <canvas id="s_g2"></canvas>
+      </figure>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="eyebrow">Results</div>
+
+    <div class="gcard">
+      <div class="big mono" id="s_big">—</div>
+      <div class="err" id="s_bignote">Record θ₂ at several angles of incidence.</div>
+    </div>
+
+    <dl class="stats">
+      <dt>n₁ · n₂</dt><dd id="s_n">—</dd>
+      <dt>sin θ₁</dt><dd id="s_sin1">—</dd>
+      <dt>sin θ₂</dt><dd id="s_sin2">—</dd>
+      <dt>sin θ₁ / sin θ₂</dt><dd id="s_ratio">—</dd>
+      <dt>Critical angle</dt><dd id="s_crit">—</dd>
+      <dt>Light speed in medium 2</dt><dd id="s_v2">—</dd>
+    </dl>
+
+    <div class="log" id="s_log">
+      <div class="empty">No readings yet.</div>
     </div>
   </section>
 
@@ -445,24 +577,32 @@
       <input type="number" id="f_pos" value="0.100" min="0" max="0.45" step="0.005">
     </div>
 
-    <div class="eyebrow" style="margin-top:22px">Magnetometer</div>
+    <div class="eyebrow" style="margin-top:22px">Measurement error</div>
 
     <div class="field">
-      <div class="rowval">
-        <label for="f_noise">Reading noise <span class="u">(±)</span></label>
-        <span class="v mono" id="f_noiseOut">2.0 µT</span>
+      <label class="check"><input type="checkbox" id="f_err"> Add measurement error</label>
+      <p class="hint" style="margin:6px 0 0">Off: the probe reads the ideal law exactly (dipole field / long solenoid). On adds sensor noise, placement error, Earth’s field and real magnet/coil size.</p>
+    </div>
+
+    <div class="errbox" id="f_errctl" hidden>
+      <div class="field">
+        <div class="rowval">
+          <label for="f_noise">Reading noise <span class="u">(±)</span></label>
+          <span class="v mono" id="f_noiseOut">2.0 µT</span>
+        </div>
+        <input type="range" id="f_noise" min="0" max="20" step="0.5" value="2">
       </div>
-      <input type="range" id="f_noise" min="0" max="20" step="0.5" value="2">
-    </div>
 
-    <div class="field">
-      <label for="f_punc">Probe position uncertainty <span class="u">(± m)</span></label>
-      <input type="number" id="f_punc" value="0.002" min="0" max="0.02" step="0.001">
-    </div>
+      <div class="field">
+        <label for="f_punc">Probe position uncertainty <span class="u">(± m)</span></label>
+        <input type="number" id="f_punc" value="0.002" min="0" max="0.02" step="0.001">
+      </div>
 
-    <div class="field">
-      <label class="check"><input type="checkbox" id="f_tare" checked> Probe zeroed before measuring</label>
-      <p class="hint" style="margin:6px 0 0">Untick to leave Earth’s field (≈ 20 µT along the bench) in every reading.</p>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="f_tare" checked> Probe zeroed before measuring</label>
+        <p class="hint" style="margin:6px 0 0">Untick to leave Earth’s field (≈ 20 µT along the bench) in every reading.</p>
+      </div>
+
     </div>
 
     <div class="btns">
@@ -626,6 +766,7 @@
       <div class="seg" id="d_exp" style="flex-wrap:wrap">
         <button data-exp="fall" aria-pressed="true">Free fall</button>
         <button data-exp="pend" aria-pressed="false">Pendulum</button>
+        <button data-exp="snell" aria-pressed="false">Snell’s law</button>
         <button data-exp="proj" aria-pressed="false">Projectiles</button>
         <button data-exp="fmag" aria-pressed="false">Field: magnet</button>
         <button data-exp="fsol" aria-pressed="false">Field: solenoid</button>
@@ -656,7 +797,7 @@
 
     <div class="field">
       <div class="rowval"><label for="d_rand">Random uncertainty <span class="u" id="d_randU">(±, reliability)</span></label><span class="v mono" id="d_randOut">—</span></div>
-      <input type="range" id="d_rand" min="0" max="100" step="1" value="30">
+      <input type="range" id="d_rand" min="0" max="100" step="1" value="0">
     </div>
 
     <div class="field">
@@ -665,7 +806,7 @@
     </div>
 
     <div class="field">
-      <label class="check"><input type="checkbox" id="d_round" checked> Round to instrument precision</label>
+      <label class="check"><input type="checkbox" id="d_round"> Round to instrument precision</label>
     </div>
 
     <div class="btns">
@@ -684,6 +825,7 @@
 <script src="js/labs/fall.js"></script>
 
 <script src="js/labs/pend.js"></script>
+<script src="js/labs/snell.js"></script>
 
 <script src="js/labs/proj.js"></script>
 

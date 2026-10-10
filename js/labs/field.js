@@ -19,6 +19,8 @@
   const Nin=$('N'), lenIn=$('len'), Iin=$('I'), posIn=$('pos'), noiseIn=$('noise'), puncIn=$('punc'), tareChk=$('tare');
   const btnRec=$('record'), btnClear=$('clear'), btnExport=$('export');
 
+  // errors off by default: the probe reads the ideal law exactly
+  const errOn = PL.errorToggle($('err'), $('errctl'), () => { tick(); render(); });
   let src = 'magnet', N = 200, len = 0.2, I = 2, noise = 2;
   let pos = { magnet: 0.10, sol: 0.0 };      // recorded probe position per source
   let posErr = 0;                             // how far the probe really is from where you think
@@ -28,20 +30,22 @@
 
   /* ---------- the physics: field along the axis, in µT ---------- */
   function Bmagnet(r){
+    if(!errOn()) return 2e-7*MAG_M/(r*r*r) * 1e6;     // ideal point dipole: B = μ0 m / 2πr³
     const a = MAG_LEN/2, q = MAG_M/MAG_LEN;
     return 1e-7*q*(1/((r-a)*(r-a)) - 1/((r+a)*(r+a))) * 1e6;
   }
   function Bsol(x, n, l, i){               // finite solenoid, on axis, x from its centre
+    const R = errOn() ? SOL_R : 0.001;     // ideal: a thin coil, so the centre field is μ0 n I
     const p = x + l/2, m = x - l/2;
-    return MU0*(n/l)*i/2 * (p/Math.hypot(p, SOL_R) - m/Math.hypot(m, SOL_R)) * 1e6;
+    return MU0*(n/l)*i/2 * (p/Math.hypot(p, R) - m/Math.hypot(m, R)) * 1e6;
   }
   const Bnow = x => src === 'magnet' ? Bmagnet(x) : Bsol(x, N, len, I);
   const minPos = () => src === 'magnet' ? MAG_LEN/2 + 0.02 : 0;
-  const bg = () => tareChk.checked ? 0 : EARTH;
-  const posTrue = () => Math.min(RMAX, Math.max(minPos() - 0.01, pos[src] + posErr));
+  const bg = () => errOn() && !tareChk.checked ? EARTH : 0;
+  const posTrue = () => Math.min(RMAX, Math.max(minPos() - 0.01, pos[src] + (errOn() ? posErr : 0)));
 
   function sample(){                        // one reading off the meter
-    const v = Bnow(posTrue()) + bg() + gauss(0, noise);
+    const v = Bnow(posTrue()) + bg() + (errOn() ? gauss(0, noise) : 0);
     return Math.round(v*10)/10;
   }
 
@@ -352,7 +356,7 @@
       const err = (mEst - MAG_M)/MAG_M*100;
       $('big').innerHTML = 'm = ' + mEst.toFixed(2) + '<small>A·m²</small>';
       $('bignote').innerHTML = (fit ? 'From the gradient of B vs 1/r³ over ' + n + ' readings' : 'From one reading · vary r for a gradient') +
-        ' · <b>' + (err>=0?'+':'') + err.toFixed(1) + '%</b> from ' + MAG_M.toFixed(2) + ' A·m²';
+        ' · <b>' + PL.signed(err, 1) + '%</b> from ' + MAG_M.toFixed(2) + ' A·m²';
       $('log').innerHTML = '<div class="row hd"><span>#</span><span>r (m)</span><span>1/r³ (m⁻³)</span><span>B (µT)</span></div>' +
         mine.map((p,i) => '<div class="row"><span class="n">' + pad2(i+1) + '</span>' +
           '<span>' + p.pos.toFixed(3) + '</span><span>' + (1/p.pos**3).toFixed(0) + '</span>' +
@@ -364,7 +368,7 @@
       const err = (mu - MU0)/MU0*100;
       $('big').innerHTML = 'μ₀ = ' + (mu*1e6).toFixed(3) + '<small>×10⁻⁶ T·m/A</small>';
       $('bignote').innerHTML = (fit ? 'From the gradient of B vs nI over ' + n + ' readings' : 'From one reading · vary I for a gradient') +
-        ' · <b>' + (err>=0?'+':'') + err.toFixed(1) + '%</b> from 4π×10⁻⁷';
+        ' · <b>' + PL.signed(err, 1) + '%</b> from 4π×10⁻⁷';
       $('log').innerHTML = '<div class="row hd"><span>#</span><span>x · I</span><span>N / ℓ</span><span>B (µT)</span></div>' +
         mine.map((p,i) => '<div class="row"><span class="n">' + pad2(i+1) + '</span>' +
           '<span>' + p.pos.toFixed(3) + 'm ' + p.I.toFixed(1) + 'A</span><span>' + p.N + ' / ' + p.len.toFixed(3) + '</span>' +

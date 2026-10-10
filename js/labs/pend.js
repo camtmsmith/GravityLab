@@ -10,6 +10,9 @@
 
   const cv=$('cv'), stage=$('stage'), watch=$('watch'), sub=$('sub'), countEl=$('count'), log=$('log');
   const lenIn=$('len'), uncIn=$('unc'), ampIn=$('amp'), reactIn=$('react'), biasIn=$('bias'), resIn=$('res');
+  // errors off by default: exact small-angle period, so g comes out at 9.81
+  const errOn = PL.errorToggle($('err'), $('errctl'), () => setApparatus(null, null));
+  const quant = () => errOn() && resIn.checked;
   const btnRun=$('run'), btnRand=$('randomL'), btnExport=$('export'), btnClear=$('clear');
   const reduced = PL.reduced;
 
@@ -29,7 +32,7 @@
     const th = deg*Math.PI/180;
     return 1 + th*th/16 + 11*Math.pow(th,4)/3072;
   }
-  function truePeriod(len, deg){ return TAU*Math.sqrt(len/G) * ampFactor(deg); }
+  function truePeriod(len, deg){ return TAU*Math.sqrt(len/G) * (errOn() ? ampFactor(deg) : 1); }
 
   /* ---------- drawing the pendulum ---------- */
   function drawStage(theta){         // theta in radians, 0 = hanging straight down
@@ -202,7 +205,7 @@
     ampIn.value = Math.round(amp);
     $('ampOut').textContent = Math.round(amp) + '°';
     sub.textContent = 'length ' + L.toFixed(3) + ' m · amplitude ' + Math.round(amp) + '°';
-    $('sAmp').textContent = '+' + ((ampFactor(amp)-1)*100).toFixed(2) + '%';
+    $('sAmp').textContent = errOn() ? '+' + ((ampFactor(amp)-1)*100).toFixed(2) + '%' : 'off (small-angle ideal)';
     if(!running){ liveAngle = null; redrawAll(amp*Math.PI/180); }
   }
 
@@ -232,9 +235,10 @@
   /* ---------- a timing run ---------- */
   function startRun(){
     if(running) return;
-    const dL    = Math.max(0, parseFloat(uncIn.value) || 0);
-    const sigma = +reactIn.value;
-    const bias  = +biasIn.value;
+    const e     = errOn() ? 1 : 0;
+    const dL    = e*Math.max(0, parseFloat(uncIn.value) || 0);
+    const sigma = e*(+reactIn.value);
+    const bias  = e*(+biasIn.value);
 
     // what actually happens
     const Lrec  = L, Nrec = N;                        // frozen for this run
@@ -250,7 +254,7 @@
     const wStart = first + dStart;
     const wStop  = first + N*Ttrue + dStop;
     let total = Math.max(0.01, wStop - wStart);        // what the stopwatch shows
-    if(resIn.checked) total = Math.round(total*100)/100;
+    if(quant()) total = Math.round(total*100)/100;
 
     const period = total/N;                            // the measured period
     const span = Math.max(first + N*Ttrue, wStop) + 0.25;
@@ -267,7 +271,7 @@
     };
 
     if(reduced && rate <= 1){
-      watch.innerHTML = total.toFixed(resIn.checked?2:3) + '<small>s</small>';
+      watch.innerHTML = total.toFixed(quant()?2:3) + '<small>s</small>';
       countEl.textContent = N;
       liveAngle = {span, T:Ttrue, theta0, tNow:span, wStart, wStop};
       redrawAll(theta0*Math.PI/180);
@@ -281,7 +285,7 @@
       const theta = theta0 * Math.cos(TAU*t/Ttrue) * Math.PI/180;
 
       const shown = t < wStart ? 0 : t > wStop ? total : t - wStart;
-      watch.innerHTML = shown.toFixed(resIn.checked?2:3) + '<small>s</small>';
+      watch.innerHTML = shown.toFixed(quant()?2:3) + '<small>s</small>';
       countEl.textContent = Math.max(0, Math.min(N, Math.floor((t - first)/Ttrue)));
 
       liveAngle = {span, T:Ttrue, theta0, tNow:t, wStart, wStop};
@@ -290,7 +294,7 @@
 
       if(t < span) requestAnimationFrame(step);
       else{
-        watch.innerHTML = total.toFixed(resIn.checked?2:3) + '<small>s</small>';
+        watch.innerHTML = total.toFixed(quant()?2:3) + '<small>s</small>';
         countEl.textContent = N;
         drawFit();
         setTimeout(finish, 300);
@@ -336,7 +340,7 @@
     }
     const err = (gShow - G)/G*100;
     $('gVal').innerHTML = gShow.toFixed(2) + '<small>m/s²</small>';
-    $('gErr').innerHTML = note + ' · <b>' + (err>=0?'+':'') + err.toFixed(1) + '%</b> from 9.81';
+    $('gErr').innerHTML = note + ' · <b>' + PL.signed(err, 1) + '%</b> from 9.81';
 
     log.innerHTML = '<div class="row hd"><span>#</span><span>L (m)</span><span>T (s)</span><span>g</span></div>' +
       trials.map((t,i) =>

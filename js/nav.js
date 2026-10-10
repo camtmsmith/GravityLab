@@ -22,7 +22,8 @@
       {id:'free-fall', name:'Free fall', lab:'lab-fall', tag:'free-fall timing bench · g = 9.81 m·s⁻²'},
       {id:'energy-time', name:'Energy–time graphs',
        blurb:'Track kinetic, gravitational potential and total energy through a motion to see where energy is transferred.'},
-      {id:'pendulum', name:'Pendulum', lab:'lab-pend', tag:'period timing bench · g = 9.81 m·s⁻²'}
+      {id:'pendulum', name:'Pendulum', lab:'lab-pend', tag:'period timing bench · g = 9.81 m·s⁻²'},
+      {id:'snells-law', name:'Snell’s law', lab:'lab-snell', tag:'refraction · n₁ sinθ₁ = n₂ sinθ₂'}
     ]},
     {id:'unit-3', name:'Unit 3', sub:'Gravity · electromagnetism', exps:[
       {id:'projectiles', name:'Projectiles', mp:'MP1', lab:'lab-proj', tag:'mandatory practical 1 · projectile motion'},

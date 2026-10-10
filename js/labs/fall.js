@@ -14,6 +14,9 @@
   const reactOut=$('reactOut'), biasOut=$('biasOut');
   const btnDrop=$('drop'), btnRand=$('randomH'), btnExport=$('export'), btnClear=$('clear');
   const reactIn=$('react'), biasIn=$('bias'), resIn=$('res'), tRead=$('tRead');
+  // errors off by default: the watch then shows the exact fall time
+  const errOn = PL.errorToggle($('err'), $('errctl'));
+  const quant = () => errOn() && resIn.checked;
   const NOMINAL_LAG = 0.20;      // typical thumb lag; cancels between the two presses
 
   let height = 1.25;      // metres above the floor
@@ -112,9 +115,10 @@
   function drop(){
     if(dropping) return;
 
-    const dh    = Math.max(0, parseFloat(uncIn.value) || 0);   // height measurement error
-    const sigma = +reactIn.value;                              // spread on each button press
-    const bias  = +biasIn.value;                               // net late-stop tendency
+    const e     = errOn() ? 1 : 0;
+    const dh    = e*Math.max(0, parseFloat(uncIn.value) || 0); // height measurement error
+    const sigma = e*(+reactIn.value);                          // spread on each button press
+    const bias  = e*(+biasIn.value);                           // net late-stop tendency
 
     // --- what actually happens ---
     const hRec  = height;                              // the height as recorded, frozen for this drop
@@ -127,7 +131,7 @@
     const dStart = NOMINAL_LAG + gauss(0, sigma);
     const dStop  = NOMINAL_LAG + gauss(0, sigma) + bias;
     let reading  = Math.max(0.001, tTrue + (dStop - dStart));
-    if(resIn.checked) reading = Math.round(reading*100)/100;   // digital watch quantisation
+    if(quant()) reading = Math.round(reading*100)/100;   // digital watch quantisation
 
     dropping = true;
     btnDrop.disabled = btnRand.disabled = true;
@@ -166,11 +170,11 @@
 
     const showWatch = tau => {
       const v = tau < wStart ? 0 : tau > wStop ? reading : tau - wStart;
-      watch.innerHTML = v.toFixed(resIn.checked ? 2 : 3) + '<small>s</small>';
+      watch.innerHTML = v.toFixed(quant() ? 2 : 3) + '<small>s</small>';
     };
     const finish = () => {
       place(0);
-      watch.innerHTML = reading.toFixed(resIn.checked ? 2 : 3) + '<small>s</small>';
+      watch.innerHTML = reading.toFixed(quant() ? 2 : 3) + '<small>s</small>';
       tRead.textContent = 'true fall ' + tTrue.toFixed(4) + ' s  ·  read ' +
                           (reading >= tTrue ? '+' : '') + (reading - tTrue).toFixed(3) + ' s';
       vRead.textContent = (G*tTrue).toFixed(2) + ' m/s at impact';
@@ -357,7 +361,7 @@
 
     $('gVal').innerHTML = gMeas.toFixed(2) + '<small>m/s²</small>';
     $('gErr').innerHTML = 'From mean time over ' + n + ' trial' + (n>1?'s':'') +
-                          ' · <b>' + (err>=0?'+':'') + err.toFixed(1) + '%</b> from 9.81';
+                          ' · <b>' + PL.signed(err, 1) + '%</b> from 9.81';
 
     log.innerHTML = trials.map((x,i)=>
       '<div class="row"><span class="n">' + pad2(i+1) + '</span>' +
