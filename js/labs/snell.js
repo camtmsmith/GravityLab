@@ -273,6 +273,12 @@
   m1Sel.value = m1.id; m2Sel.value = m2.id;
   m1Sel.addEventListener('change', () => { m1 = MATERIALS.find(m => m.id === m1Sel.value); redraw(); });
   m2Sel.addEventListener('change', () => { m2 = MATERIALS.find(m => m.id === m2Sel.value); redraw(); });
+  // light goes the other way: e.g. glass → air instead of air → glass, to find the critical angle
+  $('swap').addEventListener('click', () => {
+    [m1, m2] = [m2, m1];
+    m1Sel.value = m1.id; m2Sel.value = m2.id;
+    redraw();
+  });
 
   function setAngle(a, from){
     th1 = Math.min(89, Math.max(0, a));

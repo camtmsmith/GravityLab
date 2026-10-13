@@ -115,6 +115,7 @@ button:disabled:hover{background:transparent;color:var(--graphite)}
 .speed button:last-child,.seg button:last-child{border-right:none}
 .speed button[aria-pressed=true],.seg button[aria-pressed=true]{background:var(--graphite);color:var(--paper)}
 
+.swapbtn{width:auto;margin:-6px 0 10px;padding:6px 12px;font-size:10.5px}
 .sel{width:100%;padding:9px 10px;border:1.5px solid var(--graphite);background:#fff;border-radius:0;
   font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--graphite)}
 .angrow{display:flex;align-items:center;gap:8px}
