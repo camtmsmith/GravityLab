@@ -108,6 +108,28 @@
   window.addEventListener('modechange', paint);
   paint();
 
+  // graphs start hidden under each stage; a button shows them, remembered per lab
+  document.querySelectorAll('.lab .graphs').forEach(g => {
+    const key = 'qp-graphs-' + g.closest('.lab').id;
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'graphtoggle';
+    g.before(btn);
+    const set = on => {
+      g.hidden = !on;
+      btn.textContent = on ? 'Hide graphs' : 'Show graphs';
+      btn.setAttribute('aria-expanded', String(on));
+      try{ localStorage.setItem(key, on ? '1' : '0'); }catch(e){}
+    };
+    let on = false;
+    try{ on = localStorage.getItem(key) === '1'; }catch(e){}
+    set(on);
+    btn.addEventListener('click', () => {
+      set(g.hidden);
+      // the canvases were zero-sized while hidden, so ask the lab to redraw them
+      window.dispatchEvent(new Event('resize'));
+    });
+  });
+
   const hash = LEGACY[location.hash] || location.hash.slice(1);
   const [u, x] = hash.split('/');
   show(u || 'unit-3', x, false);

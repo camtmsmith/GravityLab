@@ -138,7 +138,7 @@ dl.stats .hb{color:#B07A0C}
 
 /* ---------- stage ---------- */
 .stage-wrap{padding:20px;display:flex;flex-direction:column}
-.stage{position:relative;flex:1;min-height:420px;background:var(--ink);
+.stage{position:relative;flex:1;min-height:420px;max-height:max(420px, calc(100vh - 300px));background:var(--ink);
   background-image:linear-gradient(rgba(91,200,216,.07) 1px,transparent 1px),
                    linear-gradient(90deg,rgba(91,200,216,.07) 1px,transparent 1px);
   background-size:100% 24px,24px 100%;overflow:hidden}
@@ -186,6 +186,8 @@ dl.stats .hb{color:#B07A0C}
 
 /* ---------- graphs ---------- */
 .graphs{display:grid;gap:12px;margin-top:14px}
+.graphs[hidden]{display:none}
+.graphtoggle{width:auto;align-self:flex-start;margin:12px 0 0;padding:8px 16px;font-size:11px}
 #lab-fall .graphs{grid-template-columns:repeat(3,1fr)}
 #lab-pend .graphs{grid-template-columns:1fr 1fr}
 #lab-proj .graphs{grid-template-columns:1fr 1fr}
