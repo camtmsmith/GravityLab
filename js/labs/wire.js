@@ -6,7 +6,7 @@
   const {TAU, sizeCanvas, downloadCSV, segmented, pad2} = PL;
   const {cyan:CYAN, red:RED} = PL.COLORS;
   const arrow = (x,x1,y1,x2,y2,col,w) => PL.arrow(x,x1,y1,x2,y2,col,w,7);
-  const D2R = Math.PI/180;
+  const D2R = Math.PI/180, SNAP = 3;   // degrees either side of 90° that snap to 90°
   const $ = PL.byPrefix('m_');
 
   const cv=$('cv'), Bin=$('B'), Iin=$('I'), Lin=$('L'), angIn=$('ang');
@@ -120,6 +120,7 @@
   function sync(){
     B=Math.max(0,parseFloat(Bin.value)||0); I=Math.max(0,parseFloat(Iin.value)||0);
     L=Math.max(0,parseFloat(Lin.value)||0); ang=Math.min(180,Math.max(0,parseFloat(angIn.value)||0));
+    if(Math.abs(ang-90)<=SNAP){ ang=90; angIn.value=90; }   // snap to perpendicular, where F is greatest
     $('angOut').textContent=Math.round(ang)+'°';
     const f=F();
     $('big').innerHTML=f.toFixed(3)+'<small>N</small>';
