@@ -130,6 +130,23 @@
     drawStage(); drawGraphs();
   }
   [Bin,Iin,Lin,angIn].forEach(el=>el.addEventListener('input',sync));
+
+  // drag on the stage to turn the wire: it points at the cursor. The wire is a line through
+  // the centre, so a point below the centre means the same angle as its mirror above.
+  cv.style.cursor='grab';
+  cv.addEventListener('pointerdown',e=>{
+    cv.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const r=cv.getBoundingClientRect();
+      const dx=(ev.clientX-r.left)-r.width/2, dy=r.height/2-(ev.clientY-r.top);
+      if(Math.hypot(dx,dy)<8) return;                       // too close to the pivot to tell
+      let a=Math.atan2(dy,dx)/D2R; if(a<0) a+=180;
+      angIn.value=Math.round(a); sync();                    // sync applies the 90° snap
+    };
+    const up=()=>{ cv.removeEventListener('pointermove',move); cv.removeEventListener('pointerup',up); };
+    cv.addEventListener('pointermove',move); cv.addEventListener('pointerup',up);
+    move(e);
+  });
   segmented($('ivsel'), d=>{ iv=d.v; drawGraphs(); });
 
   function render(){
