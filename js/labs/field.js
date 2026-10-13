@@ -13,6 +13,7 @@
   // realistic close in and tends to the dipole law μ0·m / 2πr³ far away
   const MAG_LEN = 0.05, MAG_M = 2.5, MAG_HALF_H = 0.009;
   const SOL_R = 0.025;                  // solenoid radius
+  const SOL_MAX = 0.40;                 // longest coil the length box allows
   const RMAX = 0.45;                    // bench length (m)
 
   const cv = $('cv');
@@ -111,7 +112,10 @@
     const x = sizeCanvas(cv), W = cv.clientWidth, H = cv.clientHeight;
     x.clearRect(0,0,W,H);
     cy = Math.round(H*0.56);
-    sx = src === 'magnet' ? Math.max(70, W*0.16) : Math.max(70, W*0.08 + len/2*((W*0.92 - 30)/RMAX));
+    // the solenoid sits at a fixed centre and scale chosen so the longest coil (SOL_MAX)
+    // still fits: changing its length only stretches it about that centre
+    const lead = 20, half = SOL_MAX/2;
+    sx = src === 'magnet' ? Math.max(70, W*0.16) : (lead + half*(W - 30)/RMAX)/(1 + half/RMAX);
     pxPerM = (W - sx - 30)/RMAX;
     const a = (src === 'magnet' ? MAG_LEN/2 : len/2)*pxPerM;
     const h = (src === 'magnet' ? MAG_HALF_H : SOL_R)*pxPerM;
@@ -319,7 +323,7 @@
 
   segmented($('src'), d => { src = d.src; syncSource(); });
   Nin.addEventListener('input', () => { N = Math.max(1, parseFloat(Nin.value) || 1); tick(); });
-  lenIn.addEventListener('input', () => { const v = parseFloat(lenIn.value); if(v > 0.01){ len = Math.min(0.4, v); tick(); } });
+  lenIn.addEventListener('input', () => { const v = parseFloat(lenIn.value); if(v > 0.01){ len = Math.min(SOL_MAX, v); tick(); } });
   Iin.addEventListener('input', () => { I = +Iin.value; $('IOut').textContent = I.toFixed(1) + ' A'; tick(); });
   posIn.addEventListener('input', () => { const v = parseFloat(posIn.value); if(isFinite(v)) setPos(v, true); });
   posIn.addEventListener('blur', () => posIn.value = pos[src].toFixed(3));
