@@ -4,7 +4,7 @@
    ===================================================================== */
 (function(){
   "use strict";
-  const {TAU, sizeCanvas, niceStep, arrow, downloadCSV, segmented, pad2} = PL;
+  const {TAU, gauss, sizeCanvas, niceStep, arrow, downloadCSV, segmented, pad2} = PL;
   const {cyan:CYAN, red:RED, amber:AMBER} = PL.COLORS;
   const G = 9.81, D2R = Math.PI/180;
   const $ = PL.byPrefix('j_');
@@ -24,17 +24,31 @@
 
   // the two projectiles; B is only in play when the checkbox is on
   const P = [
-    {key:'A', angle:30, col:RED,   hi:'#ff8b76', lo:'#a52a17', trail:[]},
-    {key:'B', angle:60, col:AMBER, hi:'#ffe09a', lo:'#9a6a08', trail:[]}
+    {key:'A', angle:30, col:RED,   hi:'#ff8b76', lo:'#a52a17', trail:[], da:0, dv:0},
+    {key:'B', angle:60, col:AMBER, hi:'#ffe09a', lo:'#9a6a08', trail:[], da:0, dv:0}
   ];
+  // da, dv: how far this launch strayed from the setting (degrees, fraction of speed).
+  // Always 0 in theory mode and in the idle preview.
+
+  // theory mode: the launcher does exactly what it is set to. Experiment mode: launch
+  // scatter and landing-spot reading error, plus hidden systematic launcher/tape offsets.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'),
+    onChange:() => { if(!flying) sync(); }, sources:[
+    {key:'ang',  label:'Launcher angle scale offset', gen:() => PL.offset(0.5, 3), fmt:v => PL.signed(v, 1) + '°'},
+    {key:'spd',  label:'Launcher speed calibration', gen:() => PL.offset(0.01, 0.06), fmt:v => PL.signed(v*100, 1) + '%'},
+    {key:'tape', label:'Tape measure start offset', gen:() => PL.offset(0.05, 0.3), fmt:v => PL.signed(v, 2) + ' m'}
+  ]});
+  const vspreadIn = $('vspread'), aspreadIn = $('aspread'), rprecIn = $('rprec');
+  vspreadIn.addEventListener('input', () => $('vspreadOut').textContent = '±' + (+vspreadIn.value).toFixed(1) + '%');
+  aspreadIn.addEventListener('input', () => $('aspreadOut').textContent = '±' + (+aspreadIn.value).toFixed(1) + '°');
   const active = () => twoChk.checked ? P : [P[0]];
 
   /* ---------- the physics (all deterministic), per projectile p ---------- */
   // B can be dropped from rest instead of launched: same height, zero launch speed
   const dropped = p => p.key === 'B' && bMode === 'drop';
   const spd   = p => dropped(p) ? 0 : speed;
-  const vx    = p => spd(p)*Math.cos(p.angle*D2R);
-  const vy0   = p => spd(p)*Math.sin(p.angle*D2R);
+  const vx    = p => spd(p)*(1 + p.dv)*Math.cos((p.angle + p.da)*D2R);
+  const vy0   = p => spd(p)*(1 + p.dv)*Math.sin((p.angle + p.da)*D2R);
   const tof   = p => { const u = vy0(p); return (u + Math.sqrt(u*u + 2*G*h0))/G; };
   const xAt   = (p,t) => vx(p)*Math.min(t, tof(p));
   const yAt   = (p,t) => { const tt = Math.min(t, tof(p)); return Math.max(0, h0 + vy0(p)*tt - 0.5*G*tt*tt); };
@@ -260,7 +274,7 @@
       if(s.B && s.B.dropped){
         note += ', B dropped from ' + s.h0 + ' m';
         if(s.h0 === 0) note += ' · raise the launch height so B has somewhere to fall';
-        else if(Math.abs(s.A.tof - s.B.tof) < 1e-9)
+        else if(Math.abs(s.A.tof - s.B.tof) < 0.05)
           note += ' · <b>both land together after ' + s.A.tof.toFixed(2) + ' s</b> — horizontal motion does not change the vertical fall';
         else note += ' · A lands at ' + s.A.tof.toFixed(2) + ' s, B at ' + s.B.tof.toFixed(2) + ' s — set θA = 0° for a horizontal launch';
       }else if(s.B && Math.abs(s.A.angle + s.B.angle - 90) < 1e-6){
@@ -271,6 +285,8 @@
         note += ' · <b>45° gives maximum range on level ground</b>';
       }
     }
+    if(s && err.on()) note = 'Measured off the tape · theory predicts ' + s.A.predicted.toFixed(2) + ' m' +
+      (s.B ? ' (A), ' + s.B.predicted.toFixed(2) + ' m (B)' : '') + '<br>' + note;
     $('rangeNote').innerHTML = note;
   }
 
@@ -295,9 +311,8 @@
     speed = Math.max(0.1, parseFloat(speedIn.value) || 0);
     h0 = Math.max(0, parseFloat(heightIn.value) || 0);
     syncAngles(src);
-    statsTable();
     if(!launches.length) rangeCard(null);
-    if(!flying){ P.forEach(p => p.trail = []); redraw(null); }
+    if(!flying){ P.forEach(p => { p.trail = []; p.da = p.dv = 0; }); statsTable(); redraw(null); }
   }
 
   speedIn.addEventListener('input', () => sync());
@@ -325,9 +340,18 @@
   function launch(){
     if(flying) return;
     sync();
-    const ps = active(), T = Tall();
-    const snapOf = p => ({angle: p.angle, dropped: dropped(p), speed: spd(p), range: range(p), tof: tof(p),
-                          hmax: hmax(p), vimp: vimp(p)});
+    const ps = active();
+    const predicted = new Map(ps.map(p => [p, range(p)]));       // the ideal landing spot
+    if(err.on()) ps.forEach(p => {                                // what the launcher really does
+      p.da = err.sys('ang') + gauss(0, +aspreadIn.value);
+      p.dv = err.sys('spd') + gauss(0, (+vspreadIn.value)/100);
+    });
+    const T = Tall();
+    // the landing spot as read off the tape: offset start, plus a reading error
+    const measured = p => !err.on() ? range(p)
+      : Math.round((range(p) + err.sys('tape') + gauss(0, Math.max(0, parseFloat(rprecIn.value) || 0)))*100)/100;
+    const snapOf = p => ({angle: p.angle, dropped: dropped(p), speed: spd(p), range: measured(p),
+                          predicted: predicted.get(p), tof: tof(p), hmax: hmax(p), vimp: vimp(p)});
     const snap = {speed: speed, h0: h0, A: snapOf(P[0]), B: ps.length > 1 ? snapOf(P[1]) : null};
     flying = true; P.forEach(p => p.trail = []);
     btnLaunch.disabled = true;
@@ -377,12 +401,12 @@
   btnLaunch.addEventListener('click', launch);
   btnClear.addEventListener('click', () => { launches = []; render(); sync(); });
   btnExport.addEventListener('click', () => {
-    const rows = [['launch','projectile','angle_deg','speed_ms','launch_height_m','vx_ms','vy_ms','time_of_flight_s','max_height_m','range_m','impact_speed_ms']];
+    const rows = [['launch','projectile','angle_deg','speed_ms','launch_height_m','vx_ms','vy_ms','time_of_flight_s','max_height_m','predicted_range_m','measured_range_m','impact_speed_ms']];
     launches.forEach((s,i) => [['A',s.A],['B',s.B]].forEach(([k,p]) => {
       if(!p) return;
       const vxx = p.speed*Math.cos(p.angle*D2R), vyy = p.speed*Math.sin(p.angle*D2R);
       rows.push([i+1, k, p.dropped ? 'dropped' : p.angle, p.speed.toFixed(2), s.h0, vxx.toFixed(2), vyy.toFixed(2),
-                 p.tof.toFixed(3), p.hmax.toFixed(3), p.range.toFixed(2), p.vimp.toFixed(2)]);
+                 p.tof.toFixed(3), p.hmax.toFixed(3), p.predicted.toFixed(2), p.range.toFixed(2), p.vimp.toFixed(2)]);
     }));
     downloadCSV('projectile-launches.csv', rows);
   });

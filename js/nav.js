@@ -96,6 +96,18 @@
     show(cur.unit, exps[(i + step) % exps.length].id, true);
   });
 
+  // theory / experiment switch: click the other side to change, or the lit side to flip
+  const sw = document.querySelector('.modeswitch');
+  const paint = () => sw.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', String((b.dataset.mode === 'experiment') === PL.experiment())));
+  sw.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    const lit = b.getAttribute('aria-pressed') === 'true';
+    PL.setMode(lit ? (PL.experiment() ? 'theory' : 'experiment') : b.dataset.mode);
+  });
+  window.addEventListener('modechange', paint);
+  paint();
+
   const hash = LEGACY[location.hash] || location.hash.slice(1);
   const [u, x] = hash.split('/');
   show(u || 'unit-3', x, false);

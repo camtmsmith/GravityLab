@@ -13,14 +13,21 @@
   // realistic close in and tends to the dipole law μ0·m / 2πr³ far away
   const MAG_LEN = 0.05, MAG_M = 2.5, MAG_HALF_H = 0.009;
   const SOL_R = 0.025;                  // solenoid radius
-  const RMAX = 0.45, EARTH = 20;        // bench length (m), Earth's field along the bench (µT)
+  const RMAX = 0.45;                    // bench length (m)
 
   const cv = $('cv');
-  const Nin=$('N'), lenIn=$('len'), Iin=$('I'), posIn=$('pos'), noiseIn=$('noise'), puncIn=$('punc'), tareChk=$('tare');
+  const Nin=$('N'), lenIn=$('len'), Iin=$('I'), posIn=$('pos'), noiseIn=$('noise'), puncIn=$('punc');
   const btnRec=$('record'), btnClear=$('clear'), btnExport=$('export');
 
   // errors off by default: the probe reads the ideal law exactly
-  const errOn = PL.errorToggle($('err'), $('errctl'), () => { tick(); render(); });
+  // theory mode: the probe reads the ideal law exactly. Experiment mode: sensor noise and
+  // placement scatter, the real magnet/coil size, and hidden systematic offsets.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'),
+    onChange:() => { tick(); render(); }, sources:[
+    {key:'zero', label:'Probe not zeroed (Earth’s field etc.)', gen:() => PL.offset(8, 30), fmt:v => PL.signed(v, 1) + ' µT'},
+    {key:'ruler', label:'Ruler zero offset', gen:() => PL.offset(0.002, 0.008), fmt:v => PL.signed(v*1000, 1) + ' mm'}
+  ]});
+  const errOn = err.on;
   let src = 'magnet', N = 200, len = 0.2, I = 2, noise = 2;
   let pos = { magnet: 0.10, sol: 0.0 };      // recorded probe position per source
   let posErr = 0;                             // how far the probe really is from where you think
@@ -41,8 +48,8 @@
   }
   const Bnow = x => src === 'magnet' ? Bmagnet(x) : Bsol(x, N, len, I);
   const minPos = () => src === 'magnet' ? MAG_LEN/2 + 0.02 : 0;
-  const bg = () => errOn() && !tareChk.checked ? EARTH : 0;
-  const posTrue = () => Math.min(RMAX, Math.max(minPos() - 0.01, pos[src] + (errOn() ? posErr : 0)));
+  const bg = () => err.sys('zero');
+  const posTrue = () => Math.min(RMAX, Math.max(minPos() - 0.01, pos[src] + err.sys('ruler') + (errOn() ? posErr : 0)));
 
   function sample(){                        // one reading off the meter
     const v = Bnow(posTrue()) + bg() + (errOn() ? gauss(0, noise) : 0);
@@ -274,7 +281,7 @@
     $('read').innerHTML = (Math.abs(shown) >= 1000 ? (shown/1000).toFixed(2) + '<small>mT</small>' : shown.toFixed(1) + '<small>µT</small>');
     $('where').textContent = (src === 'magnet' ? 'r = ' : 'x = ') + pos[src].toFixed(3) + ' m' +
       (src === 'magnet' ? ' from magnet centre' : ' from coil centre');
-    $('true').textContent = 'theory ' + fmtB(Bnow(pos[src])) + (bg() ? ' + ' + EARTH + ' µT Earth' : '');
+    $('true').textContent = 'theory ' + fmtB(Bnow(pos[src])) + (err.revealed() && bg() ? ' ' + PL.signed(bg(), 1) + ' µT offset' : '');
   }
 
   function tick(){
@@ -317,7 +324,6 @@
   posIn.addEventListener('input', () => { const v = parseFloat(posIn.value); if(isFinite(v)) setPos(v, true); });
   posIn.addEventListener('blur', () => posIn.value = pos[src].toFixed(3));
   noiseIn.addEventListener('input', () => { noise = +noiseIn.value; $('noiseOut').textContent = noise.toFixed(1) + ' µT'; });
-  tareChk.addEventListener('change', () => { $('sBg').textContent = bg() + ' µT'; tick(); });
 
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture(e.pointerId);
@@ -336,7 +342,7 @@
     const mine = pts[src], n = mine.length;
     btnClear.disabled = btnExport.disabled = n === 0;
     $('sN').textContent = n;
-    $('sBg').textContent = bg() + ' µT';
+    $('sBg').textContent = !errOn() ? '0 µT' : err.revealed() ? PL.signed(bg(), 1) + ' µT' : 'hidden';
     if(!n){
       $('log').innerHTML = '<div class="empty">No readings yet. ' +
         (src === 'magnet' ? 'Record at several distances, ideally a few readings at each.' : 'Record at the centre for several currents.') + '</div>';
@@ -377,16 +383,16 @@
   }
 
   btnRec.addEventListener('click', () => {
-    pts[src].push({pos: pos[src], N, len, I, B: shown, Btrue: Bnow(posTrue()), bg: bg()});
+    pts[src].push({pos: pos[src], N, len, I, B: shown, Btrue: Bnow(pos[src]), bg: bg()});
     render(); drawGraphs();
   });
   btnClear.addEventListener('click', () => { pts[src] = []; render(); drawGraphs(); });
   btnExport.addEventListener('click', () => {
     const rows = src === 'magnet'
-      ? [['reading','r_m','inv_r3_m-3','B_uT','background_uT']].concat(pts.magnet.map((p,i) =>
-          [i+1, p.pos.toFixed(3), (1/p.pos**3).toFixed(1), p.B.toFixed(1), p.bg]))
-      : [['reading','x_m','N','length_m','I_A','nI_A_per_m','B_uT','background_uT']].concat(pts.sol.map((p,i) =>
-          [i+1, p.pos.toFixed(3), p.N, p.len.toFixed(3), p.I.toFixed(2), (p.N/p.len*p.I).toFixed(1), p.B.toFixed(1), p.bg]));
+      ? [['reading','r_m','inv_r3_m-3','B_uT']].concat(pts.magnet.map((p,i) =>
+          [i+1, p.pos.toFixed(3), (1/p.pos**3).toFixed(1), p.B.toFixed(1)]))
+      : [['reading','x_m','N','length_m','I_A','nI_A_per_m','B_uT']].concat(pts.sol.map((p,i) =>
+          [i+1, p.pos.toFixed(3), p.N, p.len.toFixed(3), p.I.toFixed(2), (p.N/p.len*p.I).toFixed(1), p.B.toFixed(1)]));
     downloadCSV(src === 'magnet' ? 'field-magnet.csv' : 'field-solenoid.csv', rows);
   });
 

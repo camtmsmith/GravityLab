@@ -12,6 +12,17 @@ js/labs/*.js        one file per experiment
 js/nav.js           unit + experiment tabs; the list of units and experiments lives here
 ```
 
+## Theory and experiment modes
+
+The switch at the top right sets one site-wide mode (remembered per browser).
+
+- **Theory**: every reading follows the physics exactly.
+- **Experiment**: each lab's "Measurement error" panel appears, with
+  - **random error** sliders (reaction time, parallax, launcher scatter, sensor noise…) that change every trial, and
+  - **systematic error**: hidden offsets (untared balance, tape not started at zero, misdrawn normal…) drawn once per scenario and identical on every trial until *New scenario*. *Reveal* shows them for discussion.
+
+In a lab script, `PL.errorPanel({...})` builds this; `err.on()` says whether experiment mode is on and `err.sys('key')` returns a systematic offset (0 in theory mode).
+
 ## Adding an experiment
 
 1. Add a `<div class="lab" id="lab-xyz" hidden>` to `index.html` (copy an existing lab's three-panel layout).

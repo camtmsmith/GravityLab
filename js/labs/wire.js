@@ -13,6 +13,23 @@
   const btnRec=$('record'), btnClear=$('clear'), btnExport=$('export');
   let B=0.5, I=2, L=0.1, ang=90, iv='I', points=[];
 
+  // theory mode: the balance reads F = BIL sinθ exactly. Experiment mode: reading scatter,
+  // plus a balance that was not tared and an ammeter that reads slightly off.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'), sources:[
+    {key:'tare', label:'Balance not tared', gen:() => PL.offset(0.002, 0.008), fmt:v => PL.signed(v, 4) + ' N'},
+    {key:'amm',  label:'Ammeter calibration', gen:() => PL.offset(0.01, 0.05), fmt:v => PL.signed(v*100, 1) + '%'}
+  ]});
+  const noiseIn = $('noise');
+  noiseIn.addEventListener('input', () => $('noiseOut').textContent = '±' + (+noiseIn.value).toFixed(4) + ' N');
+  // what the balance shows: the ammeter says I, but the true current is a little different
+  function measureF(){
+    if(!err.on()) return F();
+    const Itrue = I/(1 + err.sys('amm'));
+    let r = Fof(B, Itrue, L, ang) + err.sys('tare') + PL.gauss(0, +noiseIn.value);
+    if($('round').checked) r = Math.round(r*1000)/1000;
+    return r;
+  }
+
   const RANGE = {B:[0,2], I:[0,10], L:[0,0.5], ang:[0,180]};
   const UNIT  = {B:'T', I:'A', L:'m', ang:'°'};
   const F = () => B*I*L*Math.sin(ang*D2R);
@@ -123,7 +140,7 @@
         '<span>'+p.L.toFixed(2)+'m '+Math.round(p.ang)+'°</span>'+
         '<span class="g">'+p.F.toFixed(3)+'</span></div>').reverse().join('');
   }
-  btnRec.addEventListener('click',()=>{ points.push({B,I,L,ang,F:F()}); render(); });
+  btnRec.addEventListener('click',()=>{ points.push({B,I,L,ang,F:measureF()}); render(); });
   btnClear.addEventListener('click',()=>{ points=[]; render(); });
   btnExport.addEventListener('click',()=>{
     downloadCSV('force-on-wire.csv', [['point','B_T','I_A','L_m','angle_deg','F_N']].concat(points.map((p,i)=>

@@ -49,7 +49,11 @@
 
   let exp='fall', last=null;
 
-  const {gauss, downloadCSV, segmented} = PL;
+  const {gauss, downloadCSV, copyRows, segmented} = PL;
+  // theory mode: every trial is exact. Experiment mode: the scatter and offset dials apply.
+  const showMode = () => { $('errctl').hidden = !PL.experiment(); $('theoryNote').hidden = PL.experiment(); };
+  window.addEventListener('modechange', showMode);
+  showMode();
   const cfg = () => EXP[exp];
   const ivSym = () => $('iv').value;
   const sigma = () => (+$('rand').value)/100 * cfg().randMax;
@@ -95,7 +99,8 @@
     const lo=parseFloat($('min').value), hi=parseFloat($('max').value);
     const pts=Math.min(7,Math.max(3,parseInt($('pts').value)||5));
     const k=Math.min(5,Math.max(3,parseInt($('trials').value)||5));
-    const sig=sigma(), sys=(+$('sys').value)/100, dp=c.dv.dp, doRound=$('round').checked;
+    const live=PL.experiment();
+    const sig=live?sigma():0, sys=live?(+$('sys').value)/100:0, dp=c.dv.dp, doRound=live&&$('round').checked;
     if(!isFinite(lo)||!isFinite(hi)){ return; }
 
     // fixed parameters from the param inputs
@@ -113,14 +118,15 @@
     });
     last={c, ivs, ivVar, sig, sys, k, dp, fixed, rows};
     renderTable();
-    $('export').disabled=false;
+    $('export').disabled=$('copy').disabled=false;
   }
 
   function renderTable(){
     const {c,ivs,ivVar,sig,sys,k,dp,fixed,rows}=last, out=$('out');
     const fixedTxt=Object.entries(fixed).map(([s,v])=>s+' = '+v+' '+c.vars[s].unit).join(' · ') || 'single variable';
     let html='<div class="datahead">'+
-      '<span class="title">'+c.label+' — '+c.dv.name+' vs '+ivVar.name+'</span></div>'+
+      '<span class="title">'+c.label+' — '+c.dv.name+' vs '+ivVar.name+'</span>'+
+      '<button type="button" class="copybtn">Copy table</button></div>'+
       '<div class="datahead"><span class="meta">held fixed: '+fixedTxt+'</span>'+
       '<span class="meta">random uncertainty <b>± '+sig.toFixed(dp)+' '+c.unit+'</b></span>'+
       '<span class="meta">systematic error <b>'+(sys>=0?'+':'')+(sys*100).toFixed(1)+'%</b></span></div>';
@@ -137,19 +143,21 @@
     html+='<p class="datanote"><b>Relationship:</b> '+c.note+
       '<br><b>Reliability</b> shows up as the spread across trials (the range column); <b>validity</b> is the systematic error, which shifts every reading the same way and cannot be averaged out.</p>';
     out.innerHTML=html;
+    out.querySelector('.copybtn').addEventListener('click',e=>copyRows(tableRows(), e.currentTarget));
   }
 
-  function csv(){
+  function tableRows(){
     const {c,ivs,ivVar,k,dp,rows}=last;
     const head=[ivs+'_'+ivVar.unit]; for(let j=1;j<=k;j++) head.push('trial'+j+'_'+c.dv.unit);
     head.push('mean_'+c.dv.unit,'range_'+c.dv.unit);
     const lines=[head].concat(rows.map(r=>[r.xv.toFixed(ivVar.dp),...r.trials.map(t=>t.toFixed(dp)),
       r.mean.toFixed(dp+1),r.rng.toFixed(dp)]));
-    downloadCSV(c.label.toLowerCase().replace(/[^a-z]+/g,'-')+'-dataset.csv', lines);
+    return lines;
   }
 
   $('gen').addEventListener('click',generate);
-  $('export').addEventListener('click',()=>{ if(last) csv(); });
+  $('export').addEventListener('click',()=>{ if(last) downloadCSV(last.c.label.toLowerCase().replace(/[^a-z]+/g,'-')+'-dataset.csv', tableRows()); });
+  $('copy').addEventListener('click',e=>{ if(last) copyRows(tableRows(), e.currentTarget); });
 
   switchExp('fall');
 })();

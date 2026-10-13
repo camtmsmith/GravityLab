@@ -11,11 +11,16 @@
   const stage=$('stage'), tower=$('tower'), ball=$('ball'), hline=$('hline'),
         watch=$('watch'), hRead=$('hRead'), log=$('log');
   const heightIn=$('height'), uncIn=$('unc');
-  const reactOut=$('reactOut'), biasOut=$('biasOut');
+  const reactOut=$('reactOut');
   const btnDrop=$('drop'), btnRand=$('randomH'), btnExport=$('export'), btnClear=$('clear');
-  const reactIn=$('react'), biasIn=$('bias'), resIn=$('res'), tRead=$('tRead');
-  // errors off by default: the watch then shows the exact fall time
-  const errOn = PL.errorToggle($('err'), $('errctl'));
+  const reactIn=$('react'), resIn=$('res'), tRead=$('tRead');
+  // theory mode: the watch shows the exact fall time. Experiment mode: random scatter
+  // each drop, plus hidden systematic offsets that hold until a new scenario.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'), sources:[
+    {key:'tape', label:'Tape measure zero offset', gen:() => PL.offset(0.005, 0.03), fmt:v => PL.signed(v*100, 1) + ' cm'},
+    {key:'late', label:'Stopwatch habit (late stop +)', gen:() => PL.offset(0.01, 0.05), fmt:v => PL.signed(v, 3) + ' s'}
+  ]});
+  const errOn = err.on;
   const quant = () => errOn() && resIn.checked;
   const NOMINAL_LAG = 0.20;      // typical thumb lag; cancels between the two presses
 
@@ -108,21 +113,20 @@
   heightIn.addEventListener('blur', () => setHeight(height));
   reactIn.addEventListener('input', () =>
     reactOut.textContent = (+reactIn.value).toFixed(3) + ' s');
-  biasIn.addEventListener('input', () =>
-    biasOut.textContent = ((+biasIn.value) >= 0 ? '+' : '') + (+biasIn.value).toFixed(3) + ' s');
 
   /* ---------- physics ---------- */
   function drop(){
     if(dropping) return;
 
     const e     = errOn() ? 1 : 0;
-    const dh    = e*Math.max(0, parseFloat(uncIn.value) || 0); // height measurement error
-    const sigma = e*(+reactIn.value);                          // spread on each button press
-    const bias  = e*(+biasIn.value);                           // net late-stop tendency
+    const dh    = e*Math.max(0, parseFloat(uncIn.value) || 0); // reading the tape (parallax), random
+    const sigma = e*(+reactIn.value);                          // spread on each button press, random
+    const bias  = err.sys('late');                             // late-stop habit, systematic
 
     // --- what actually happens ---
+    // the tape's zero is off by a fixed amount, so every height is out the same way
     const hRec  = height;                              // the height as recorded, frozen for this drop
-    const hTrue = Math.max(0.001, gauss(hRec, dh));    // the ball is not quite where you think
+    const hTrue = Math.max(0.001, gauss(hRec + err.sys('tape'), dh));
     const tTrue = Math.sqrt(2*hTrue/G);                 // the real fall, governed by real g
 
     // --- what the human records ---

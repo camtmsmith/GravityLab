@@ -83,19 +83,90 @@ window.PL = (function(){
     });
   }
 
-  // "Add measurement error" switch: off = exact theory, on = reveal the error controls.
-  // Returns a function telling the lab whether errors are currently on.
-  function errorToggle(chk, box, onChange){
-    const apply = () => { box.hidden = !chk.checked; };
-    chk.addEventListener('change', () => { apply(); if(onChange) onChange(); });
-    apply();
-    return () => chk.checked;
-  }
-
   // +1.2 / −0.4, and never "-0.0" from a rounding remainder
   const signed = (v, dp) => { const r = Number(v.toFixed(dp)) || 0; return (r >= 0 ? '+' : '') + r.toFixed(dp); };
   const pad2 = i => String(i).padStart(2,'0');
 
+  /* ---------- theory / experiment mode (one switch for the whole site) ---------- */
+  let mode = 'theory';
+  try{ if(localStorage.getItem('qp-mode') === 'experiment') mode = 'experiment'; }catch(e){}
+  const experiment = () => mode === 'experiment';
+  function setMode(m){
+    mode = m === 'experiment' ? 'experiment' : 'theory';
+    try{ localStorage.setItem('qp-mode', mode); }catch(e){}
+    document.documentElement.dataset.mode = mode;
+    window.dispatchEvent(new CustomEvent('modechange', {detail: mode}));
+  }
+  document.documentElement.dataset.mode = mode;
+
+  // a systematic offset of random sign, at least lo and at most hi in size
+  const offset = (lo, hi) => (Math.random() < .5 ? -1 : 1)*(lo + Math.random()*(hi - lo));
+
+  /* A lab's error panel. In theory mode it is hidden and every error is zero.
+     In experiment mode it shows the random-error controls (the lab's own markup inside
+     `box`) and builds a systematic-error section in `sysHost`: hidden offsets drawn once
+     per scenario, identical on every trial until "New scenario" is pressed.
+       sources: [{key, label, gen: () => value, fmt: v => text}]
+     Returns {on(), sys(key), reroll()}. sys() is 0 unless experiment mode and enabled. */
+  function errorPanel({box, note, sysHost, sources, onChange}){
+    const vals = {};
+    let revealed = false;
+    sysHost.innerHTML =
+      '<label class="check"><input type="checkbox" checked> Include systematic error</label>' +
+      '<p class="hint" style="margin:6px 0 8px">Hidden offsets, the same on every trial. Start a new scenario for a fresh set.</p>' +
+      '<dl class="scen"></dl>' +
+      '<div class="scenbtns"><button type="button" data-a="new">New scenario</button>' +
+      '<button type="button" data-a="reveal">Reveal</button></div>';
+    const chk = sysHost.querySelector('input'), list = sysHost.querySelector('.scen');
+    const btnReveal = sysHost.querySelector('[data-a=reveal]');
+
+    function show(){
+      list.innerHTML = sources.map(s => '<dt>' + s.label + '</dt><dd>' +
+        (revealed ? s.fmt(vals[s.key]) : '<span class="masked">hidden</span>') + '</dd>').join('');
+      btnReveal.textContent = revealed ? 'Hide' : 'Reveal';
+      list.style.opacity = chk.checked ? 1 : .4;
+    }
+    function reroll(){ sources.forEach(s => vals[s.key] = s.gen()); revealed = false; show(); }
+    function apply(){
+      box.hidden = !experiment();
+      if(note) note.hidden = experiment();
+    }
+
+    sysHost.querySelector('[data-a=new]').addEventListener('click', () => { reroll(); if(onChange) onChange(); });
+    btnReveal.addEventListener('click', () => { revealed = !revealed; show(); if(onChange) onChange(); });
+    chk.addEventListener('change', () => { show(); if(onChange) onChange(); });
+    window.addEventListener('modechange', () => { apply(); if(onChange) onChange(); });
+    reroll(); apply();
+
+    return {
+      on: experiment,
+      sys: key => experiment() && chk.checked ? vals[key] : 0,
+      revealed: () => revealed,
+      reroll
+    };
+  }
+
+  // tab-separated text pastes straight into Excel / Sheets as a table
+  async function copyRows(rows, btn){
+    const text = rows.map(r => r.join('\t')).join('\n');
+    let ok = false;
+    try{ await navigator.clipboard.writeText(text); ok = true; }
+    catch(e){                                   // file:// and older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try{ ok = document.execCommand('copy'); }catch(e2){}
+      ta.remove();
+    }
+    if(btn){
+      const was = btn.textContent;
+      btn.textContent = ok ? 'Copied ✓' : 'Copy failed';
+      setTimeout(() => btn.textContent = was, 1400);
+    }
+    return ok;
+  }
+
   return {TAU, COLORS, reduced, byPrefix, sizeCanvas, hidden, gauss, fitLine, niceStep,
-          arrow, downloadCSV, segmented, errorToggle, signed, pad2};
+          arrow, downloadCSV, copyRows, segmented, signed, pad2,
+          experiment, setMode, offset, errorPanel};
 })();

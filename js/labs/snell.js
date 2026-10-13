@@ -4,7 +4,7 @@
    ===================================================================== */
 (function(){
   "use strict";
-  const {TAU, gauss, sizeCanvas, fitLine, downloadCSV, errorToggle, pad2} = PL;
+  const {TAU, gauss, sizeCanvas, fitLine, downloadCSV, pad2} = PL;
   const {red:RED, amber:AMBER, navy:NAVY} = PL.COLORS;
   const D2R = Math.PI/180, R2D = 180/Math.PI, C = 3.00e8;
   const $ = PL.byPrefix('s_');
@@ -20,9 +20,15 @@
   ];
 
   const cv = $('cv'), m1Sel = $('m1'), m2Sel = $('m2'), angIn = $('ang'), angNum = $('angNum');
-  const reflChk = $('refl'), spreadIn = $('spread'), tiltIn = $('tilt'), roundChk = $('round');
+  const reflChk = $('refl'), spreadIn = $('spread'), roundChk = $('round');
   const btnRec = $('record'), btnSweep = $('sweep'), btnClear = $('clear'), btnExport = $('export');
-  const errOn = errorToggle($('err'), $('errctl'), () => redraw());
+  // theory mode: θ₂ read exactly. Experiment mode: protractor reading scatter, plus a
+  // normal drawn slightly off — the same wrong line for every reading in a scenario.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'),
+    onChange:() => redraw(), sources:[
+    {key:'tilt', label:'Normal drawn off true', gen:() => PL.offset(0.5, 3), fmt:v => PL.signed(v, 1) + '°'}
+  ]});
+  const errOn = err.on;
 
   let th1 = 30, m1 = MATERIALS[0], m2 = MATERIALS[3];
   const sets = {};                         // recorded readings, kept per material pair
@@ -44,7 +50,7 @@
   // what the student reads off the protractor for incidence a
   function measure(a){
     if(!errOn()) return refract(a, m1.n, m2.n);
-    const tilt = +tiltIn.value;
+    const tilt = err.sys('tilt');
     // with the normal drawn tilt° off, the ray really meets the boundary at a + tilt,
     // and the refracted angle is read against the same wrong line on the far side
     const t2 = refract(a + tilt, m1.n, m2.n);
@@ -96,8 +102,8 @@
     // normal (true), and the misdrawn one when that error is on
     x.setLineDash([6,5]); x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = 1.25;
     x.beginPath(); x.moveTo(O.x, O.y - Lray*1.05); x.lineTo(O.x, O.y + Lray*1.05); x.stroke();
-    const tilt = errOn() ? +tiltIn.value : 0;
-    if(tilt){
+    const tilt = err.sys('tilt');
+    if(tilt && err.revealed()){             // the true normal is only shown once revealed
       const t = tilt*D2R, dx = Math.sin(t)*Lray, dy = Math.cos(t)*Lray;
       x.strokeStyle = 'rgba(200,200,200,.5)';
       x.beginPath(); x.moveTo(O.x - dx, O.y - dy); x.lineTo(O.x + dx, O.y + dy); x.stroke();
@@ -279,7 +285,6 @@
   angNum.addEventListener('blur', () => angNum.value = Math.round(th1*10)/10);
   reflChk.addEventListener('change', drawStage);
   spreadIn.addEventListener('input', () => $('spreadOut').textContent = (+spreadIn.value).toFixed(1) + '°');
-  tiltIn.addEventListener('input', () => { $('tiltOut').textContent = PL.signed(+tiltIn.value, 1) + '°'; drawStage(); });
 
   cv.addEventListener('pointerdown', e => {
     cv.setPointerCapture(e.pointerId);

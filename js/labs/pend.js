@@ -9,9 +9,16 @@
   const $ = PL.byPrefix('p_');
 
   const cv=$('cv'), stage=$('stage'), watch=$('watch'), sub=$('sub'), countEl=$('count'), log=$('log');
-  const lenIn=$('len'), uncIn=$('unc'), ampIn=$('amp'), reactIn=$('react'), biasIn=$('bias'), resIn=$('res');
+  const lenIn=$('len'), uncIn=$('unc'), ampIn=$('amp'), reactIn=$('react'), resIn=$('res');
   // errors off by default: exact small-angle period, so g comes out at 9.81
-  const errOn = PL.errorToggle($('err'), $('errctl'), () => setApparatus(null, null));
+  // theory mode: exact small-angle period. Experiment mode: random scatter each run, the
+  // large-amplitude effect, and hidden systematic offsets that hold until a new scenario.
+  const err = PL.errorPanel({box:$('errctl'), note:$('theoryNote'), sysHost:$('sys'),
+    onChange:() => setApparatus(null, null), sources:[
+    {key:'len', label:'Length measured to the wrong point', gen:() => PL.offset(0.005, 0.025), fmt:v => PL.signed(v*100, 1) + ' cm'},
+    {key:'late', label:'Stopwatch habit (late stop +)', gen:() => PL.offset(0.01, 0.08), fmt:v => PL.signed(v, 3) + ' s'}
+  ]});
+  const errOn = err.on;
   const quant = () => errOn() && resIn.checked;
   const btnRun=$('run'), btnRand=$('randomL'), btnExport=$('export'), btnClear=$('clear');
   const reduced = PL.reduced;
@@ -226,8 +233,6 @@
   lenIn.addEventListener('input', () => { const v = parseFloat(lenIn.value); if(isFinite(v)) setApparatus(v, null); });
   ampIn.addEventListener('input', () => setApparatus(null, +ampIn.value));
   reactIn.addEventListener('input', () => $('reactOut').textContent = (+reactIn.value).toFixed(3) + ' s');
-  biasIn.addEventListener('input', () => $('biasOut').textContent =
-    ((+biasIn.value) >= 0 ? '+' : '') + (+biasIn.value).toFixed(3) + ' s');
 
   segmented($('cycles'), d => N = +d.n, () => running);
   segmented($('speed'), d => rate = +d.rate, () => running);
@@ -238,11 +243,12 @@
     const e     = errOn() ? 1 : 0;
     const dL    = e*Math.max(0, parseFloat(uncIn.value) || 0);
     const sigma = e*(+reactIn.value);
-    const bias  = e*(+biasIn.value);
+    const bias  = err.sys('late');                    // systematic
 
     // what actually happens
     const Lrec  = L, Nrec = N;                        // frozen for this run
-    const Ltrue = Math.max(0.01, gauss(Lrec, dL));    // the length you did not quite measure right
+    // a fixed measuring slip (e.g. to the top of the bob) plus a random reading error
+    const Ltrue = Math.max(0.01, gauss(Lrec + err.sys('len'), dL));
     const Ttrue = truePeriod(Ltrue, amp);
     const theta0 = amp;
 
